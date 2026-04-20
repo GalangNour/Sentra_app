@@ -1,10 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:uuid/uuid.dart';
+import 'package:sentra_app/core/services/app_state.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
 
-// ─── Data from scan ───────────────────────────────────────
+// ─── Data Model ───────────────────────────────────────────
 class ParsedReceiptData {
   final String merchant;
   final double total;
@@ -34,14 +36,18 @@ class ScanResultScreen extends StatefulWidget {
 
 class _ScanResultScreenState extends State<ScanResultScreen>
     with SingleTickerProviderStateMixin {
+  final _state = AppState.instance;
+  static const _uuid = Uuid();
+
   late AnimationController _entryCtrl;
   late Animation<double> _fade;
   late Animation<Offset> _slide;
 
   late TextEditingController _titleCtrl;
   late TextEditingController _amountCtrl;
-  late TransactionCategory _category;
-  late TransactionType _type;
+  TransactionCategory _category = TransactionCategory.shopping;
+  String? _customCategoryId;
+  TransactionType _type = TransactionType.expense;
   bool _saved = false;
 
   @override
@@ -51,13 +57,13 @@ class _ScanResultScreenState extends State<ScanResultScreen>
     _amountCtrl =
         TextEditingController(text: widget.data.total.toInt().toString());
     _category = widget.data.category;
-    _type = TransactionType.expense;
 
     _entryCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 450));
     _fade = CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOut);
     _slide = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOutCubic));
+        .animate(
+            CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOutCubic));
     _entryCtrl.forward();
   }
 
@@ -72,38 +78,36 @@ class _ScanResultScreenState extends State<ScanResultScreen>
   Color get _typeColor =>
       _type == TransactionType.expense ? AppColors.expense : AppColors.income;
 
-  void _save() {
+  Future<void> _save() async {
     final amount = double.tryParse(
           _amountCtrl.text.replaceAll('.', '').replaceAll(',', ''),
         ) ??
         widget.data.total;
 
     if (_titleCtrl.text.trim().isEmpty || amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Isi nama dan jumlah transaksi'),
-          backgroundColor: AppColors.surfaceElevated,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          margin: const EdgeInsets.all(16),
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Isi nama dan jumlah transaksi'),
+        backgroundColor: AppColors.surfaceElevated,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+      ));
       return;
     }
 
-    AppData.addTransaction(Transaction(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+    await _state.addTransaction(Transaction(
+      id: _uuid.v4(),
       title: _titleCtrl.text.trim(),
       amount: amount,
       type: _type,
       category: _category,
+      customCategoryId: _customCategoryId,
       date: widget.data.date,
       fromScan: true,
     ));
 
     setState(() => _saved = true);
     HapticFeedback.mediumImpact();
-
     Future.delayed(const Duration(milliseconds: 1200), () {
       if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
     });
@@ -150,13 +154,10 @@ class _ScanResultScreenState extends State<ScanResultScreen>
     );
   }
 
-  // ─── App Bar ─────────────────────────────────────────────
-
   Widget _buildAppBar() {
     return SliverAppBar(
       pinned: true,
       backgroundColor: AppColors.background,
-      elevation: 0,
       leading: GestureDetector(
         onTap: () => Navigator.of(context).pop(),
         child: Container(
@@ -173,32 +174,29 @@ class _ScanResultScreenState extends State<ScanResultScreen>
     );
   }
 
-  // ─── Success Badge ────────────────────────────────────────
-
   Widget _buildSuccessBadge() {
     final hasAmount = widget.data.total > 0;
+    final color = hasAmount ? AppColors.income : AppColors.warning;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: (hasAmount ? AppColors.income : AppColors.warning).withAlpha(20),
+        color: color.withAlpha(20),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: (hasAmount ? AppColors.income : AppColors.warning).withAlpha(51),
-        ),
+        border: Border.all(color: color.withAlpha(51)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: (hasAmount ? AppColors.income : AppColors.warning).withAlpha(26),
+              color: color.withAlpha(26),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               hasAmount
                   ? Icons.check_circle_outline_rounded
                   : Icons.warning_amber_rounded,
-              color: hasAmount ? AppColors.income : AppColors.warning,
+              color: color,
               size: 18,
             ),
           ),
@@ -208,7 +206,9 @@ class _ScanResultScreenState extends State<ScanResultScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  hasAmount ? 'Total berhasil ditemukan!' : 'Total tidak terdeteksi',
+                  hasAmount
+                      ? 'Total berhasil ditemukan!'
+                      : 'Total tidak terdeteksi',
                   style: const TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 13,
@@ -218,16 +218,15 @@ class _ScanResultScreenState extends State<ScanResultScreen>
                   hasAmount
                       ? 'Periksa & edit jika perlu, lalu simpan'
                       : 'Masukkan jumlah secara manual',
-                  style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                  style: const TextStyle(
+                      color: AppColors.textMuted, fontSize: 12),
                 ),
               ],
             ),
           ),
-          // Thumbnail jika ada gambar
           if (widget.data.imagePath != null)
             Container(
-              width: 40,
-              height: 40,
+              width: 40, height: 40,
               margin: const EdgeInsets.only(left: 8),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
@@ -242,8 +241,6 @@ class _ScanResultScreenState extends State<ScanResultScreen>
     );
   }
 
-  // ─── Amount Card ─────────────────────────────────────────
-
   Widget _buildAmountCard() {
     return Container(
       padding: const EdgeInsets.all(22),
@@ -255,18 +252,10 @@ class _ScanResultScreenState extends State<ScanResultScreen>
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: _typeColor.withAlpha(76)),
-        boxShadow: [
-          BoxShadow(
-            color: _typeColor.withAlpha(30),
-            blurRadius: 20,
-            offset: const Offset(0, 6),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Type toggle
           Row(
             children: [
               _typeChip(TransactionType.expense, 'Pengeluaran',
@@ -277,17 +266,18 @@ class _ScanResultScreenState extends State<ScanResultScreen>
             ],
           ),
           const SizedBox(height: 18),
-
-          // Amount input
           Text(
-            _type == TransactionType.expense ? 'Jumlah Pengeluaran' : 'Jumlah Pemasukan',
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            _type == TransactionType.expense
+                ? 'Jumlah Pengeluaran'
+                : 'Jumlah Pemasukan',
+            style: const TextStyle(
+                color: AppColors.textSecondary, fontSize: 13),
           ),
           const SizedBox(height: 8),
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text('Rp',
+              Text(_state.currency.symbol,
                   style: TextStyle(
                       color: _typeColor,
                       fontSize: 26,
@@ -305,8 +295,8 @@ class _ScanResultScreenState extends State<ScanResultScreen>
                   ),
                   decoration: const InputDecoration(
                     hintText: '0',
-                    hintStyle:
-                        TextStyle(color: AppColors.textMuted, fontSize: 34),
+                    hintStyle: TextStyle(
+                        color: AppColors.textMuted, fontSize: 34),
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
@@ -324,12 +314,10 @@ class _ScanResultScreenState extends State<ScanResultScreen>
 
   Widget _typeChip(TransactionType t, String label, IconData icon) {
     final sel = _type == t;
-    final color = t == TransactionType.expense ? AppColors.expense : AppColors.income;
+    final color =
+        t == TransactionType.expense ? AppColors.expense : AppColors.income;
     return GestureDetector(
-      onTap: () {
-        setState(() => _type = t);
-        HapticFeedback.selectionClick();
-      },
+      onTap: () => setState(() => _type = t),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
@@ -356,8 +344,6 @@ class _ScanResultScreenState extends State<ScanResultScreen>
     );
   }
 
-  // ─── Details Form ─────────────────────────────────────────
-
   Widget _buildDetailsForm() {
     return Container(
       decoration: BoxDecoration(
@@ -371,7 +357,8 @@ class _ScanResultScreenState extends State<ScanResultScreen>
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
             child: TextField(
               controller: _titleCtrl,
-              style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+              style: const TextStyle(
+                  color: AppColors.textPrimary, fontSize: 14),
               decoration: const InputDecoration(
                 labelText: 'Nama / Merchant',
                 prefixIcon: Icon(Icons.store_rounded,
@@ -389,21 +376,18 @@ class _ScanResultScreenState extends State<ScanResultScreen>
             leading: const Icon(Icons.calendar_today_rounded,
                 size: 18, color: AppColors.textMuted),
             title: const Text('Tanggal',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-            trailing: Text(
-              Fmt.date(widget.data.date),
-              style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600),
-            ),
+                style: TextStyle(
+                    color: AppColors.textSecondary, fontSize: 13)),
+            trailing: Text(Fmt.date(widget.data.date),
+                style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600)),
           ),
         ],
       ),
     );
   }
-
-  // ─── Category Picker ─────────────────────────────────────
 
   Widget _buildCategoryPicker() {
     return Column(
@@ -420,59 +404,84 @@ class _ScanResultScreenState extends State<ScanResultScreen>
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: TransactionCategory.values.map((c) {
-            final sel = c == _category;
-            final color = CategoryMeta.color(c);
-            return GestureDetector(
-              onTap: () {
-                setState(() => _category = c);
-                HapticFeedback.selectionClick();
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: sel ? color.withAlpha(38) : AppColors.surfaceCard,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: sel ? color.withAlpha(102) : AppColors.surfaceBorder,
-                    width: sel ? 1.5 : 1,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(CategoryMeta.icon(c),
-                        size: 16,
-                        color: sel ? color : AppColors.textMuted),
-                    const SizedBox(width: 6),
-                    Text(CategoryMeta.label(c),
-                        style: TextStyle(
-                          color: sel ? color : AppColors.textSecondary,
-                          fontSize: 13,
-                          fontWeight:
-                              sel ? FontWeight.w600 : FontWeight.w400,
-                        )),
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
+          children: [
+            ...TransactionCategory.values.map((c) {
+              final sel = _customCategoryId == null && c == _category;
+              final color = CategoryMeta.color(c);
+              return _catChip(
+                label: CategoryMeta.label(c),
+                icon: CategoryMeta.icon(c),
+                color: color,
+                selected: sel,
+                onTap: () => setState(() {
+                  _category = c;
+                  _customCategoryId = null;
+                }),
+              );
+            }),
+            ..._state.customCategories.map((cc) {
+              final sel = _customCategoryId == cc.id;
+              return _catChip(
+                label: cc.name,
+                icon: cc.icon,
+                color: cc.color,
+                selected: sel,
+                onTap: () => setState(() {
+                  _customCategoryId = cc.id;
+                  _category = TransactionCategory.other;
+                }),
+              );
+            }),
+          ],
         ),
       ],
     );
   }
 
-  // ─── Raw OCR Text (collapsed by default) ─────────────────
+  Widget _catChip({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? color.withAlpha(38) : AppColors.surfaceCard,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color:
+                selected ? color.withAlpha(102) : AppColors.surfaceBorder,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon,
+                size: 15,
+                color: selected ? color : AppColors.textMuted),
+            const SizedBox(width: 5),
+            Text(label,
+                style: TextStyle(
+                  color: selected ? color : AppColors.textSecondary,
+                  fontSize: 12,
+                  fontWeight:
+                      selected ? FontWeight.w600 : FontWeight.w400,
+                )),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildRawTextSection() {
     return Theme(
-      data: Theme.of(context).copyWith(
-        dividerColor: Colors.transparent,
-        splashColor: Colors.transparent,
-        highlightColor: Colors.transparent,
-      ),
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.surfaceCard,
@@ -480,7 +489,8 @@ class _ScanResultScreenState extends State<ScanResultScreen>
           border: Border.all(color: AppColors.surfaceBorder),
         ),
         child: ExpansionTile(
-          tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+          tilePadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
           childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
           leading: const Icon(Icons.text_snippet_outlined,
               color: AppColors.textMuted, size: 18),
@@ -502,10 +512,9 @@ class _ScanResultScreenState extends State<ScanResultScreen>
               child: SelectableText(
                 widget.data.rawText!,
                 style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 11,
-                  height: 1.6,
-                ),
+                    color: AppColors.textSecondary,
+                    fontSize: 11,
+                    height: 1.6),
               ),
             ),
           ],
@@ -514,8 +523,6 @@ class _ScanResultScreenState extends State<ScanResultScreen>
     );
   }
 
-  // ─── Buttons ─────────────────────────────────────────────
-
   Widget _buildSaveButton() {
     return GestureDetector(
       onTap: _saved ? null : _save,
@@ -523,8 +530,9 @@ class _ScanResultScreenState extends State<ScanResultScreen>
         duration: const Duration(milliseconds: 300),
         height: 54,
         decoration: BoxDecoration(
-          gradient:
-              _saved ? AppColors.incomeGradient : AppColors.primaryGradient,
+          gradient: _saved
+              ? AppColors.incomeGradient
+              : AppColors.primaryGradient,
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(

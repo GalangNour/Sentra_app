@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.sentra.sentra_app"
-    compileSdk = 35
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
