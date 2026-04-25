@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
@@ -5,14 +6,33 @@ import 'package:sentra_app/core/services/app_state.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
 
+/// Data pre-filled from an OCR scan
+class ScanPrefill {
+  final String merchant;
+  final double total;
+  final TransactionCategory category;
+  final String? imagePath;
+  final String? rawText;
+
+  const ScanPrefill({
+    required this.merchant,
+    required this.total,
+    required this.category,
+    this.imagePath,
+    this.rawText,
+  });
+}
+
 class AddTransactionScreen extends StatefulWidget {
   final TransactionType initialType;
   final Transaction? editTransaction; // if set → edit mode
+  final ScanPrefill? scanData;        // if set → prefill from OCR
 
   const AddTransactionScreen({
     super.key,
     this.initialType = TransactionType.expense,
     this.editTransaction,
+    this.scanData,
   });
 
   @override
@@ -26,15 +46,18 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   late TransactionType _type;
   TransactionCategory _category = TransactionCategory.food;
   String? _customCategoryId;
-  final _titleCtrl = TextEditingController();
+  final _titleCtrl  = TextEditingController();
   final _amountCtrl = TextEditingController();
-  final _noteCtrl = TextEditingController();
+  final _noteCtrl   = TextEditingController();
   DateTime _date = DateTime.now();
+  List<String> _suggestions = [];
+  bool _showSuggestions = false;
 
   @override
   void initState() {
     super.initState();
     final edit = widget.editTransaction;
+    final scan = widget.scanData;
     if (edit != null) {
       _type = edit.type;
       _category = edit.category;
@@ -43,13 +66,39 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _titleCtrl.text = edit.title;
       _amountCtrl.text = _fmtEditAmount(edit.amount);
       _noteCtrl.text = edit.note ?? '';
+    } else if (scan != null) {
+      _type = TransactionType.expense;
+      _category = scan.category;
+      _titleCtrl.text = scan.merchant;
+      if (scan.total > 0) _amountCtrl.text = _fmtEditAmount(scan.total);
     } else {
       _type = widget.initialType;
     }
+    _titleCtrl.addListener(_onTitleChanged);
+  }
+
+  void _onTitleChanged() {
+    final q = _titleCtrl.text;
+    final results = _state.suggestTitles(q);
+    // Hide suggestion if the typed text exactly matches one result (already chosen)
+    final exact = results.length == 1 && results.first == q;
+    setState(() {
+      _suggestions = results;
+      _showSuggestions = results.isNotEmpty && !exact;
+    });
+  }
+
+  void _applySuggestion(String title) {
+    _titleCtrl.removeListener(_onTitleChanged);
+    _titleCtrl.text = title;
+    _titleCtrl.selection = TextSelection.collapsed(offset: title.length);
+    setState(() => _showSuggestions = false);
+    _titleCtrl.addListener(_onTitleChanged);
   }
 
   @override
   void dispose() {
+    _titleCtrl.removeListener(_onTitleChanged);
     _titleCtrl.dispose();
     _amountCtrl.dispose();
     _noteCtrl.dispose();
@@ -101,7 +150,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       customCategoryId: _customCategoryId,
       date: _date,
       note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
-      fromScan: edit?.fromScan ?? false,
+      fromScan: edit?.fromScan ?? (widget.scanData != null),
     );
 
     if (edit != null) {
@@ -152,7 +201,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         title: Text(
           widget.editTransaction != null
               ? 'Edit Transaksi'
-              : 'Tambah Transaksi',
+              : widget.scanData != null
+                  ? 'Konfirmasi Scan'
+                  : 'Tambah Transaksi',
         ),
         actions: [
           TextButton(
@@ -173,6 +224,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (widget.scanData != null) ...[_buildScanBanner(), const SizedBox(height: 16)],
             _buildTypeSelector(),
             const SizedBox(height: 20),
             _buildAmountInput(),
@@ -180,8 +232,175 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             _buildDetailsCard(),
             const SizedBox(height: 20),
             _buildCategoryPicker(),
+            if (widget.scanData?.rawText != null && widget.scanData!.rawText!.isNotEmpty) ...[const SizedBox(height: 16), _buildRawOcrSection()],
           ],
         ),
+      ),
+    );
+  }
+
+  // ─── Scan banner ─────────────────────────────────────────
+
+  Widget _buildScanBanner() {
+    final scan = widget.scanData!;
+    final hasTotal = scan.total > 0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: (hasTotal ? AppColors.income : AppColors.warning).withAlpha(20),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: (hasTotal ? AppColors.income : AppColors.warning).withAlpha(51),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: (hasTotal ? AppColors.income : AppColors.warning).withAlpha(26),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              hasTotal ? Icons.document_scanner_rounded : Icons.warning_amber_rounded,
+              color: hasTotal ? AppColors.income : AppColors.warning,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  hasTotal ? 'Hasil scan ditemukan' : 'Total tidak terdeteksi',
+                  style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  hasTotal ? 'Periksa & edit jika ada yang salah' : 'Isi jumlah secara manual',
+                  style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          if (scan.imagePath != null)
+            Container(
+              width: 38, height: 38,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                image: DecorationImage(
+                  image: FileImage(File(scan.imagePath!)),
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRawOcrSection() {
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surfaceCard,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.surfaceBorder),
+        ),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+          childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+          leading: const Icon(Icons.text_snippet_outlined, color: AppColors.textMuted, size: 18),
+          title: const Text('Teks OCR Mentah',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+          iconColor: AppColors.textMuted,
+          collapsedIconColor: AppColors.textMuted,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceElevated,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: SelectableText(
+                widget.scanData!.rawText!,
+                style: const TextStyle(
+                    color: AppColors.textSecondary, fontSize: 11, height: 1.6),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Suggestion dropdown ──────────────────────────────────
+
+  Widget _buildSuggestionList() {
+    return Container(
+      margin: const EdgeInsets.only(top: 4),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.surfaceBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(51),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: _suggestions.asMap().entries.map((e) {
+          final i = e.key;
+          final title = e.value;
+          final isLast = i == _suggestions.length - 1;
+          return InkWell(
+            onTap: () => _applySuggestion(title),
+            borderRadius: BorderRadius.vertical(
+              top: i == 0 ? const Radius.circular(14) : Radius.zero,
+              bottom: isLast ? const Radius.circular(14) : Radius.zero,
+            ),
+            splashColor: _typeColor.withAlpha(26),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.history_rounded,
+                          size: 16, color: AppColors.textMuted),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Icon(Icons.north_west_rounded,
+                          size: 14, color: _typeColor.withAlpha(153)),
+                    ],
+                  ),
+                ),
+                if (!isLast)
+                  Divider(color: AppColors.surfaceBorder, height: 1, indent: 40),
+              ],
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -322,6 +541,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   Widget _buildDetailsCard() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildStyledField(
           controller: _titleCtrl,
@@ -329,6 +549,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           hint: 'Contoh: Makan siang, Gaji...',
           icon: Icons.receipt_long_rounded,
           focusColor: _typeColor,
+        ),
+        // ── Suggestion dropdown ──────────────────────────
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          child: _showSuggestions
+              ? _buildSuggestionList()
+              : const SizedBox.shrink(),
         ),
         const SizedBox(height: 12),
         _buildDateRow(),

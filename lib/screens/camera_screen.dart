@@ -6,7 +6,7 @@ import 'package:sentra_app/core/services/app_state.dart';
 import 'package:sentra_app/core/services/ocr_service.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
-import 'package:sentra_app/screens/scan_result_screen.dart';
+import 'package:sentra_app/screens/add_transaction_screen.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -103,12 +103,19 @@ class _CameraScreenState extends State<CameraScreen>
     _scanLineCtrl.repeat();
     try {
       final XFile file = await _controller!.takePicture();
-      final ParsedReceiptData parsed =
-          await OcrService.processReceipt(file.path);
+      final result = await OcrService.processReceipt(file.path);
       if (!mounted) return;
       _scanLineCtrl.stop();
       await Navigator.of(context).push(PageRouteBuilder(
-        pageBuilder: (_, a, __) => ScanResultScreen(data: parsed),
+        pageBuilder: (_, a, __) => AddTransactionScreen(
+          scanData: ScanPrefill(
+            merchant: result.merchant,
+            total: result.total,
+            category: result.category,
+            imagePath: result.imagePath,
+            rawText: result.rawText,
+          ),
+        ),
         transitionsBuilder: (_, a, __, child) {
           final tween = Tween(begin: const Offset(0, 1), end: Offset.zero)
               .chain(CurveTween(curve: Curves.easeOutCubic));

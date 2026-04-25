@@ -1,6 +1,24 @@
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
-import 'package:sentra_app/screens/scan_result_screen.dart';
+
+/// Simple data bag returned by OcrService
+class ParsedReceiptData {
+  final String merchant;
+  final double total;
+  final DateTime date;
+  final TransactionCategory category;
+  final String? imagePath;
+  final String? rawText;
+
+  ParsedReceiptData({
+    required this.merchant,
+    required this.total,
+    required this.date,
+    required this.category,
+    this.imagePath,
+    this.rawText,
+  });
+}
 
 /// Google ML Kit Text Recognition wrapper.
 /// MVP: extract merchant name + total amount only.

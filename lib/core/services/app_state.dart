@@ -258,6 +258,24 @@ class AppState {
 
   // ── Computed helpers ─────────────────────────────────────
 
+  /// Returns unique past transaction titles that contain [query],
+  /// ordered by most recent, max [limit] results.
+  List<String> suggestTitles(String query, {int limit = 8}) {
+    if (query.trim().isEmpty) return [];
+    final q = query.toLowerCase();
+    final seen = <String>{};
+    final results = <String>[];
+    for (final tx in transactions) {
+      // transactions is already sorted newest-first
+      final t = tx.title.trim();
+      if (t.toLowerCase().contains(q) && seen.add(t)) {
+        results.add(t);
+        if (results.length >= limit) break;
+      }
+    }
+    return results;
+  }
+
   double get totalIncome => transactions
       .where((t) => t.type == TransactionType.income)
       .fold(0, (s, t) => s + t.amount);
