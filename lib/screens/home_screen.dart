@@ -3,10 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:sentra_app/core/services/app_state.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
+import 'package:sentra_app/screens/add_installment_screen.dart';
 import 'package:sentra_app/screens/add_transaction_screen.dart';
 import 'package:sentra_app/screens/camera_screen.dart';
+import 'package:sentra_app/screens/installment_detail_screen.dart';
 import 'package:sentra_app/screens/settings_screen.dart';
 import 'package:sentra_app/screens/transaction_detail_screen.dart';
+import 'package:sentra_app/screens/transactions_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -76,8 +79,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _openSettings() async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+    setState(() {});
+  }
+
+  Future<void> _openAddInstallment() async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const AddInstallmentScreen()));
+    setState(() {});
+  }
+
+  Future<void> _openInstallmentDetail(InstallmentPlan plan) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => InstallmentDetailScreen(plan: plan)),
+    );
+    setState(() {});
+  }
+
+  Future<void> _openAllTransactions() async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const TransactionsScreen()));
     setState(() {});
   }
 
@@ -97,11 +122,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildHomeTab() {
     final txs = _state.transactions;
+    final recentTxs = txs.take(5).toList();
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(child: _buildHeader()),
         SliverToBoxAdapter(child: _buildBalanceCard()),
         SliverToBoxAdapter(child: _buildQuickAdd()),
+        SliverToBoxAdapter(child: _buildInstallmentSection()),
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
@@ -117,11 +144,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 ),
                 if (txs.isNotEmpty)
-                  Text(
-                    '${txs.length} total',
-                    style: TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 13,
+                  TextButton(
+                    onPressed: _openAllTransactions,
+                    child: Text(
+                      'Lihat Semua',
+                      style: TextStyle(
+                        color: AppColors.primaryLight,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
               ],
@@ -133,12 +164,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         else
           SliverList(
             delegate: SliverChildBuilderDelegate((_, i) {
-              if (i >= txs.length) return const SizedBox(height: 100);
+              if (i >= recentTxs.length) return const SizedBox(height: 100);
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: _buildTxCard(txs[i], i),
+                child: _buildTxCard(recentTxs[i], i),
               );
-            }, childCount: txs.length + 1),
+            }, childCount: recentTxs.length + 1),
           ),
       ],
     );
@@ -173,8 +204,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
               Text(
                 'Budget & Keuangan',
-                style:
-                    TextStyle(color: AppColors.textMuted, fontSize: 13),
+                style: TextStyle(color: AppColors.textMuted, fontSize: 13),
               ),
             ],
           ),
@@ -232,8 +262,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             children: [
               Text(
                 'Total Saldo',
-                style: TextStyle(
-                    color: AppColors.textSecondary, fontSize: 13),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -276,10 +305,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   Icons.arrow_downward_rounded,
                 ),
               ),
-              Container(
-                  width: 1,
-                  height: 40,
-                  color: AppColors.surfaceElevated),
+              Container(width: 1, height: 40, color: AppColors.surfaceElevated),
               Expanded(
                 child: _balanceStat(
                   'Pengeluaran',
@@ -295,8 +321,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _balanceStat(
-      String label, double amount, Color color, IconData icon) {
+  Widget _balanceStat(String label, double amount, Color color, IconData icon) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
@@ -316,10 +341,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             children: [
               Text(
                 label,
-                style: TextStyle(
-                  color: AppColors.textMuted,
-                  fontSize: 11,
-                ),
+                style: TextStyle(color: AppColors.textMuted, fontSize: 11),
               ),
               Text(
                 Fmt.compact(amount),
@@ -339,27 +361,195 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget _buildQuickAdd() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: _quickBtn(
-              label: '+ Pengeluaran',
-              color: AppColors.expense,
-              icon: Icons.remove_circle_outline_rounded,
-              onTap: () =>
-                  _openAddTransaction(type: TransactionType.expense),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: _quickBtn(
+                  label: '+ Pengeluaran',
+                  color: AppColors.expense,
+                  icon: Icons.remove_circle_outline_rounded,
+                  onTap: () =>
+                      _openAddTransaction(type: TransactionType.expense),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _quickBtn(
+                  label: '+ Pemasukan',
+                  color: AppColors.income,
+                  icon: Icons.add_circle_outline_rounded,
+                  onTap: () =>
+                      _openAddTransaction(type: TransactionType.income),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _quickBtn(
-              label: '+ Pemasukan',
-              color: AppColors.income,
-              icon: Icons.add_circle_outline_rounded,
-              onTap: () =>
-                  _openAddTransaction(type: TransactionType.income),
-            ),
+          const SizedBox(height: 10),
+          _quickBtn(
+            label: '+ Cicilan Baru',
+            color: AppColors.warning,
+            icon: Icons.account_balance_wallet_rounded,
+            onTap: _openAddInstallment,
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInstallmentSection() {
+    final plans = _state.activeInstallmentPlans;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Cicilan Aktif',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (plans.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withAlpha(20),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${plans.length} aktif',
+                    style: const TextStyle(
+                      color: AppColors.warning,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (plans.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceCard,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: AppColors.surfaceBorder),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: AppColors.warning.withAlpha(20),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.account_balance_wallet_rounded,
+                          color: AppColors.warning,
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Belum ada cicilan aktif',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Tambahkan utang atau cicilan, lalu saat membuat pengeluaran pilih cicilan yang ingin dibayar.',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.warning.withAlpha(26),
+                    AppColors.surfaceCard,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: AppColors.warning.withAlpha(60)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withAlpha(26),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(
+                      Icons.payments_rounded,
+                      color: AppColors.warning,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Sisa total cicilan',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          Fmt.full(_state.totalInstallmentOutstanding),
+                          style: const TextStyle(
+                            color: AppColors.warning,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...plans.take(5).map(_buildInstallmentCard),
+          ],
         ],
       ),
     );
@@ -582,6 +772,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               ),
                             ),
                           ),
+                          if (tx.installmentPlanId != null) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.warning.withAlpha(20),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'Cicilan',
+                                style: TextStyle(
+                                  color: AppColors.warning,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
                           const SizedBox(width: 6),
                           Text(
                             Fmt.timeAgo(tx.date),
@@ -665,8 +876,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           const SizedBox(height: 4),
           Text(
             'Ringkasan keuangan kamu',
-            style:
-                TextStyle(color: AppColors.textMuted, fontSize: 14),
+            style: TextStyle(color: AppColors.textMuted, fontSize: 14),
           ),
           const SizedBox(height: 20),
 
@@ -735,8 +945,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   children: [
                     const Text(
                       'Savings Rate',
-                      style: TextStyle(
-                          color: Colors.white70, fontSize: 12),
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -766,8 +975,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             const SizedBox(height: 12),
             ...sorted.take(8).map((e) {
               final color = catColors[e.key] ?? AppColors.primary;
-              final icon =
-                  catIcons[e.key] ?? Icons.more_horiz_rounded;
+              final icon = catIcons[e.key] ?? Icons.more_horiz_rounded;
               final pct = grandTotal > 0 ? e.value / grandTotal : 0.0;
 
               String label;
@@ -779,8 +987,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               } else {
                 try {
                   label = CategoryMeta.label(
-                    TransactionCategory.values
-                        .firstWhere((v) => v.name == e.key),
+                    TransactionCategory.values.firstWhere(
+                      (v) => v.name == e.key,
+                    ),
                   );
                 } catch (_) {
                   label = e.key;
@@ -806,8 +1015,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
                                 label,
@@ -830,17 +1038,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           const SizedBox(height: 5),
                           TweenAnimationBuilder<double>(
                             tween: Tween(begin: 0, end: pct),
-                            duration:
-                                const Duration(milliseconds: 700),
+                            duration: const Duration(milliseconds: 700),
                             curve: Curves.easeOutCubic,
                             builder: (_, v, __) => ClipRRect(
                               borderRadius: BorderRadius.circular(4),
                               child: LinearProgressIndicator(
                                 value: v,
-                                backgroundColor:
-                                    AppColors.surfaceElevated,
-                                valueColor:
-                                    AlwaysStoppedAnimation(color),
+                                backgroundColor: AppColors.surfaceElevated,
+                                valueColor: AlwaysStoppedAnimation(color),
                                 minHeight: 5,
                               ),
                             ),
@@ -857,8 +1062,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             Center(
               child: Text(
                 'Belum ada data pengeluaran',
-                style: TextStyle(
-                    color: AppColors.textMuted, fontSize: 14),
+                style: TextStyle(color: AppColors.textMuted, fontSize: 14),
               ),
             ),
           ],
@@ -867,8 +1071,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _statCard(
-      String label, double amount, Color color, IconData icon) {
+  Widget _statCard(String label, double amount, Color color, IconData icon) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -892,10 +1095,107 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           const SizedBox(height: 2),
           Text(
             label,
-            style: TextStyle(
-                color: AppColors.textMuted, fontSize: 12),
+            style: TextStyle(color: AppColors.textMuted, fontSize: 12),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildInstallmentCard(InstallmentPlan plan) {
+    final remaining = _state.installmentRemaining(plan.id);
+    final paid = _state.installmentPaidAmount(plan.id);
+    final progress = _state.installmentProgress(plan.id);
+    return GestureDetector(
+      onTap: () => _openInstallmentDetail(plan),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.surfaceBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withAlpha(20),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.account_balance_wallet_rounded,
+                    color: AppColors.warning,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        plan.name,
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Sisa ${Fmt.full(remaining)} dari ${Fmt.full(plan.totalAmount)}',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '${(progress * 100).toStringAsFixed(0)}%',
+                      style: const TextStyle(
+                        color: AppColors.warning,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 16,
+                      color: AppColors.textMuted,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: progress,
+                backgroundColor: AppColors.surfaceElevated,
+                valueColor: const AlwaysStoppedAnimation(AppColors.warning),
+                minHeight: 7,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Sudah dibayar ${Fmt.compact(paid)}',
+              style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -929,8 +1229,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 6, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
                 child: ScaleTransition(
                   scale: _fabScale,
                   child: GestureDetector(
@@ -989,12 +1288,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         children: [
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
             decoration: BoxDecoration(
-              color: sel
-                  ? AppColors.primary.withAlpha(31)
-                  : Colors.transparent,
+              color: sel ? AppColors.primary.withAlpha(31) : Colors.transparent,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(

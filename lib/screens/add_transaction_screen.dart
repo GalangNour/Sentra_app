@@ -33,12 +33,14 @@ class AddTransactionScreen extends StatefulWidget {
   final TransactionType initialType;
   final Transaction? editTransaction;
   final ScanPrefill? scanData;
+  final String? initialInstallmentPlanId;
 
   const AddTransactionScreen({
     super.key,
     this.initialType = TransactionType.expense,
     this.editTransaction,
     this.scanData,
+    this.initialInstallmentPlanId,
   });
 
   @override
@@ -52,6 +54,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   late TransactionType _type;
   TransactionCategory _category = TransactionCategory.food;
   String? _customCategoryId;
+  String? _installmentPlanId;
   final _titleCtrl = TextEditingController();
   final _amountCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
@@ -68,6 +71,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _type = edit.type;
       _category = edit.category;
       _customCategoryId = edit.customCategoryId;
+      _installmentPlanId = edit.installmentPlanId;
       _date = edit.date;
       _titleCtrl.text = edit.title;
       _amountCtrl.text = _fmtEditAmount(edit.amount);
@@ -79,6 +83,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       if (scan.total > 0) _amountCtrl.text = _fmtEditAmount(scan.total);
     } else {
       _type = widget.initialType;
+      _installmentPlanId = widget.initialInstallmentPlanId;
+      if (_installmentPlanId != null) {
+        _category = TransactionCategory.bills;
+      }
     }
     _titleCtrl.addListener(_onTitleChanged);
   }
@@ -96,8 +104,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   void _applySuggestion(String title) {
     _titleCtrl.removeListener(_onTitleChanged);
     _titleCtrl.text = title;
-    _titleCtrl.selection =
-        TextSelection.collapsed(offset: title.length);
+    _titleCtrl.selection = TextSelection.collapsed(offset: title.length);
     setState(() => _showSuggestions = false);
     _titleCtrl.addListener(_onTitleChanged);
   }
@@ -126,6 +133,32 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Color get _typeColor =>
       _type == TransactionType.expense ? AppColors.expense : AppColors.income;
 
+  List<InstallmentPlan> get _availableInstallments {
+    final plans = _state.activeInstallmentPlans.toList();
+    final current = _state.installmentById(_installmentPlanId);
+    if (current != null && !plans.any((plan) => plan.id == current.id)) {
+      plans.insert(0, current);
+    }
+    return plans;
+  }
+
+  double _selectedInstallmentRemaining({String? excludingTransactionId}) {
+    final planId = _installmentPlanId;
+    if (planId == null) return 0;
+    final plan = _state.installmentById(planId);
+    if (plan == null) return 0;
+    final paid = _state.transactions
+        .where(
+          (tx) =>
+              tx.type == TransactionType.expense &&
+              tx.installmentPlanId == planId &&
+              tx.id != excludingTransactionId,
+        )
+        .fold(0.0, (sum, tx) => sum + tx.amount);
+    final remaining = plan.totalAmount - paid;
+    return remaining < 0 ? 0 : remaining;
+  }
+
   Future<void> _save() async {
     final amount = double.tryParse(
       _amountCtrl.text.replaceAll('.', '').replaceAll(',', ''),
@@ -146,6 +179,28 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     }
 
     final edit = widget.editTransaction;
+    if (_type == TransactionType.expense && _installmentPlanId != null) {
+      final remaining = _selectedInstallmentRemaining(
+        excludingTransactionId: edit?.id,
+      );
+      if (amount > remaining) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Pembayaran melebihi sisa cicilan (${Fmt.full(remaining)})',
+            ),
+            backgroundColor: AppColors.surfaceElevated,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+        return;
+      }
+    }
+
     final tx = Transaction(
       id: edit?.id ?? _uuid.v4(),
       title: _titleCtrl.text.trim(),
@@ -153,6 +208,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       type: _type,
       category: _category,
       customCategoryId: _customCategoryId,
+      installmentPlanId: _type == TransactionType.expense
+          ? _installmentPlanId
+          : null,
       date: _date,
       note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
       fromScan: edit?.fromScan ?? (widget.scanData != null),
@@ -200,16 +258,19 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               color: AppColors.surfaceCard,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(Icons.close_rounded,
-                size: 18, color: AppColors.textPrimary),
+            child: Icon(
+              Icons.close_rounded,
+              size: 18,
+              color: AppColors.textPrimary,
+            ),
           ),
         ),
         title: Text(
           widget.editTransaction != null
               ? 'Edit Transaksi'
               : widget.scanData != null
-                  ? 'Konfirmasi Scan'
-                  : 'Tambah Transaksi',
+              ? 'Konfirmasi Scan'
+              : 'Tambah Transaksi',
         ),
         actions: [
           TextButton(
@@ -232,7 +293,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           children: [
             if (widget.scanData != null) ...[
               _buildScanBanner(),
-              const SizedBox(height: 16)
+              const SizedBox(height: 16),
             ],
             _buildTypeSelector(),
             const SizedBox(height: 20),
@@ -243,12 +304,16 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             ],
             const SizedBox(height: 20),
             _buildDetailsCard(),
+            if (_type == TransactionType.expense) ...[
+              const SizedBox(height: 20),
+              _buildInstallmentPicker(),
+            ],
             const SizedBox(height: 20),
             _buildCategoryPicker(),
             if (widget.scanData?.rawText != null &&
                 widget.scanData!.rawText!.isNotEmpty) ...[
               const SizedBox(height: 16),
-              _buildRawOcrSection()
+              _buildRawOcrSection(),
             ],
           ],
         ),
@@ -294,28 +359,40 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 Row(
                   children: [
                     Text(
-                      hasTotal ? 'Hasil scan ditemukan' : 'Total tidak terdeteksi',
+                      hasTotal
+                          ? 'Hasil scan ditemukan'
+                          : 'Total tidak terdeteksi',
                       style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600),
+                        color: AppColors.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(width: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
-                        color: (isGemini ? AppColors.primary : AppColors.textMuted)
-                            .withAlpha(30),
+                        color:
+                            (isGemini ? AppColors.primary : AppColors.textMuted)
+                                .withAlpha(30),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: (isGemini ? AppColors.primary : AppColors.textMuted)
-                              .withAlpha(80),
+                          color:
+                              (isGemini
+                                      ? AppColors.primary
+                                      : AppColors.textMuted)
+                                  .withAlpha(80),
                         ),
                       ),
                       child: Text(
                         isGemini ? 'Gemini AI' : 'ML Kit',
                         style: TextStyle(
-                          color: isGemini ? AppColors.primaryLight : AppColors.textMuted,
+                          color: isGemini
+                              ? AppColors.primaryLight
+                              : AppColors.textMuted,
                           fontSize: 9,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.3,
@@ -359,9 +436,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         Text(
           'Nominal terdeteksi di struk — tap untuk pilih:',
           style: TextStyle(
-              color: AppColors.textMuted,
-              fontSize: 11,
-              fontWeight: FontWeight.w500),
+            color: AppColors.textMuted,
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         const SizedBox(height: 8),
         Wrap(
@@ -378,7 +456,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 7),
+                  horizontal: 14,
+                  vertical: 7,
+                ),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? AppColors.primary.withAlpha(40)
@@ -398,9 +478,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                         ? AppColors.primaryLight
                         : AppColors.textSecondary,
                     fontSize: 13,
-                    fontWeight: isSelected
-                        ? FontWeight.w700
-                        : FontWeight.w400,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
                   ),
                 ),
               ),
@@ -423,15 +501,16 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         ),
         child: ExpansionTile(
           initiallyExpanded: true,
-          tilePadding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
           childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-          leading: Icon(Icons.text_snippet_outlined,
-              color: AppColors.textMuted, size: 18),
+          leading: Icon(
+            Icons.text_snippet_outlined,
+            color: AppColors.textMuted,
+            size: 18,
+          ),
           title: Text(
             isGemini ? 'Respons Gemini (debug)' : 'Teks OCR Mentah (debug)',
-            style: TextStyle(
-                color: AppColors.textSecondary, fontSize: 13),
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
           iconColor: AppColors.textMuted,
           collapsedIconColor: AppColors.textMuted,
@@ -446,9 +525,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               child: SelectableText(
                 widget.scanData!.rawText!,
                 style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 11,
-                    height: 1.6),
+                  color: AppColors.textSecondary,
+                  fontSize: 11,
+                  height: 1.6,
+                ),
               ),
             ),
           ],
@@ -491,11 +571,16 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               children: [
                 Padding(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 11),
+                    horizontal: 14,
+                    vertical: 11,
+                  ),
                   child: Row(
                     children: [
-                      Icon(Icons.history_rounded,
-                          size: 16, color: AppColors.textMuted),
+                      Icon(
+                        Icons.history_rounded,
+                        size: 16,
+                        color: AppColors.textMuted,
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
@@ -509,17 +594,20 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      Icon(Icons.north_west_rounded,
-                          size: 14,
-                          color: _typeColor.withAlpha(153)),
+                      Icon(
+                        Icons.north_west_rounded,
+                        size: 14,
+                        color: _typeColor.withAlpha(153),
+                      ),
                     ],
                   ),
                 ),
                 if (!isLast)
                   Divider(
-                      color: AppColors.surfaceBorder,
-                      height: 1,
-                      indent: 40),
+                    color: AppColors.surfaceBorder,
+                    height: 1,
+                    indent: 40,
+                  ),
               ],
             ),
           );
@@ -558,7 +646,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          setState(() => _type = t);
+          setState(() {
+            _type = t;
+            if (_type == TransactionType.income) {
+              _installmentPlanId = null;
+            }
+          });
           HapticFeedback.selectionClick();
         },
         child: AnimatedContainer(
@@ -567,8 +660,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           decoration: BoxDecoration(
             gradient: sel
                 ? (t == TransactionType.expense
-                    ? AppColors.expenseGradient
-                    : AppColors.incomeGradient)
+                      ? AppColors.expenseGradient
+                      : AppColors.incomeGradient)
                 : null,
             borderRadius: BorderRadius.circular(10),
           ),
@@ -611,10 +704,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             _type == TransactionType.expense
                 ? 'Jumlah Pengeluaran'
                 : 'Jumlah Pemasukan',
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 13,
-            ),
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
           const SizedBox(height: 10),
           Row(
@@ -696,6 +786,179 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
+  Widget _buildInstallmentPicker() {
+    final plans = _availableInstallments;
+    final selectedPlan = _state.installmentById(_installmentPlanId);
+    final remaining = selectedPlan == null
+        ? 0.0
+        : _selectedInstallmentRemaining(
+            excludingTransactionId: widget.editTransaction?.id,
+          );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Pembayaran Cicilan',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceCard,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.surfaceBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              InkWell(
+                onTap: () {
+                  setState(() => _installmentPlanId = null);
+                  HapticFeedback.selectionClick();
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: _installmentPlanId == null
+                        ? AppColors.primary.withAlpha(18)
+                        : AppColors.surfaceElevated,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _installmentPlanId == null
+                          ? AppColors.primary.withAlpha(90)
+                          : AppColors.surfaceBorder,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.do_not_disturb_on_outlined,
+                        color: _installmentPlanId == null
+                            ? AppColors.primaryLight
+                            : AppColors.textMuted,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Bukan pembayaran cicilan',
+                          style: TextStyle(
+                            color: _installmentPlanId == null
+                                ? AppColors.primaryLight
+                                : AppColors.textSecondary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (plans.isEmpty) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Belum ada cicilan aktif. Tambahkan cicilan dari beranda terlebih dulu.',
+                  style: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 12,
+                    height: 1.5,
+                  ),
+                ),
+              ] else ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: plans.map((plan) {
+                    final selected = _installmentPlanId == plan.id;
+                    final planRemaining = selected
+                        ? remaining
+                        : _state.installmentRemaining(plan.id);
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _installmentPlanId = plan.id;
+                          _category = TransactionCategory.bills;
+                          _customCategoryId = null;
+                        });
+                        HapticFeedback.selectionClick();
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? AppColors.warning.withAlpha(20)
+                              : AppColors.surfaceElevated,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: selected
+                                ? AppColors.warning
+                                : AppColors.surfaceBorder,
+                            width: selected ? 1.4 : 1,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              plan.name,
+                              style: TextStyle(
+                                color: selected
+                                    ? AppColors.warning
+                                    : AppColors.textPrimary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Sisa ${Fmt.full(planRemaining)}',
+                              style: TextStyle(
+                                color: selected
+                                    ? AppColors.warning
+                                    : AppColors.textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+              if (selectedPlan != null) ...[
+                const SizedBox(height: 14),
+                Text(
+                  'Pembayaran ini akan mengurangi sisa cicilan ${selectedPlan.name} menjadi ${Fmt.full((remaining - (double.tryParse(_amountCtrl.text.replaceAll('.', '').replaceAll(',', '')) ?? 0)).clamp(0, remaining).toDouble())}.',
+                  style: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 12,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildStyledField({
     required TextEditingController controller,
     required String label,
@@ -719,8 +982,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         decoration: InputDecoration(
           labelText: label,
           hintText: hint,
-          hintStyle:
-              TextStyle(color: AppColors.textMuted, fontSize: 13),
+          hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 13),
           labelStyle: TextStyle(
             color: hasFocus ? focusColor : AppColors.textSecondary,
             fontSize: 13,
@@ -752,10 +1014,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(
-              color: AppColors.surfaceBorder,
-              width: 1,
-            ),
+            borderSide: BorderSide(color: AppColors.surfaceBorder, width: 1),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
@@ -817,8 +1076,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 10, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
                 color: AppColors.primary.withAlpha(30),
                 borderRadius: BorderRadius.circular(8),
@@ -916,17 +1174,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon,
-                size: 15,
-                color: selected ? color : AppColors.textMuted),
+            Icon(icon, size: 15, color: selected ? color : AppColors.textMuted),
             const SizedBox(width: 5),
             Text(
               label,
               style: TextStyle(
                 color: selected ? color : AppColors.textSecondary,
                 fontSize: 12,
-                fontWeight:
-                    selected ? FontWeight.w600 : FontWeight.w400,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
               ),
             ),
           ],

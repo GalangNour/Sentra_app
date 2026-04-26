@@ -4,8 +4,6 @@ import 'package:uuid/uuid.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
 
-// ─── Currency ─────────────────────────────────────────────
-
 class CurrencyInfo {
   final String code;
   final String symbol;
@@ -35,15 +33,15 @@ class CurrencyInfo {
     symbol: 'RM',
     name: 'Malaysian Ringgit',
   );
-  static const eur = CurrencyInfo(code: 'EUR', symbol: '€', name: 'Euro');
+  static const eur = CurrencyInfo(code: 'EUR', symbol: 'EUR', name: 'Euro');
   static const gbp = CurrencyInfo(
     code: 'GBP',
-    symbol: '£',
+    symbol: 'GBP',
     name: 'British Pound',
   );
   static const jpy = CurrencyInfo(
     code: 'JPY',
-    symbol: '¥',
+    symbol: 'JPY',
     name: 'Japanese Yen',
   );
   static const aud = CurrencyInfo(
@@ -53,14 +51,22 @@ class CurrencyInfo {
   );
   static const cny = CurrencyInfo(
     code: 'CNY',
-    symbol: '¥',
+    symbol: 'CNY',
     name: 'Chinese Yuan',
   );
-  static const krw = CurrencyInfo(code: 'KRW', symbol: '₩', name: 'Korean Won');
-  static const thb = CurrencyInfo(code: 'THB', symbol: '฿', name: 'Thai Baht');
+  static const krw = CurrencyInfo(
+    code: 'KRW',
+    symbol: 'KRW',
+    name: 'Korean Won',
+  );
+  static const thb = CurrencyInfo(
+    code: 'THB',
+    symbol: 'THB',
+    name: 'Thai Baht',
+  );
   static const php = CurrencyInfo(
     code: 'PHP',
-    symbol: '₱',
+    symbol: 'PHP',
     name: 'Philippine Peso',
   );
 
@@ -82,8 +88,6 @@ class CurrencyInfo {
   static CurrencyInfo fromCode(String code) =>
       all.firstWhere((c) => c.code == code, orElse: () => idr);
 }
-
-// ─── Custom Category ──────────────────────────────────────
 
 class CustomCategory {
   final String id;
@@ -154,23 +158,22 @@ class CustomCategory {
   ];
 }
 
-// ─── AppState singleton ───────────────────────────────────
-
 class AppState {
   AppState._();
   static final AppState instance = AppState._();
 
   late Box _txBox;
   late Box _catBox;
+  late Box _installmentBox;
   late Box _settingsBox;
 
   List<Transaction> transactions = [];
   List<CustomCategory> customCategories = [];
+  List<InstallmentPlan> installmentPlans = [];
   CurrencyInfo currency = CurrencyInfo.idr;
 
   static const _uuid = Uuid();
 
-  // ── Theme rebuild callback ───────────────────────────────
   static VoidCallback? _rebuildApp;
   static void registerRebuild(VoidCallback fn) => _rebuildApp = fn;
   static void _triggerRebuild() => _rebuildApp?.call();
@@ -179,24 +182,40 @@ class AppState {
     await Hive.initFlutter();
     _txBox = await Hive.openBox('transactions');
     _catBox = await Hive.openBox('customCategories');
+    _installmentBox = await Hive.openBox('installmentPlans');
     _settingsBox = await Hive.openBox('settings');
 
     _loadTransactions();
     _loadCustomCategories();
+    _loadInstallments();
     _loadSettings();
   }
 
   void _loadTransactions() {
-    transactions = _txBox.values
-        .map((v) => Transaction.fromMap(Map<String, dynamic>.from(v as Map)))
-        .toList();
-    transactions.sort((a, b) => b.date.compareTo(a.date));
+    transactions =
+        _txBox.values
+            .map(
+              (v) => Transaction.fromMap(Map<String, dynamic>.from(v as Map)),
+            )
+            .toList()
+          ..sort((a, b) => b.date.compareTo(a.date));
   }
 
   void _loadCustomCategories() {
     customCategories = _catBox.values
         .map((v) => CustomCategory.fromMap(Map<String, dynamic>.from(v as Map)))
         .toList();
+  }
+
+  void _loadInstallments() {
+    installmentPlans =
+        _installmentBox.values
+            .map(
+              (v) =>
+                  InstallmentPlan.fromMap(Map<String, dynamic>.from(v as Map)),
+            )
+            .toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
   void _loadSettings() {
@@ -209,17 +228,13 @@ class AppState {
         _settingsBox.get('theme_preset_id', defaultValue: 'navy') as String;
     final accentValue =
         _settingsBox.get('theme_accent', defaultValue: 0xFF6C63FF) as int;
-    ThemeConfig.apply(
-      ThemePreset.fromId(presetId),
-      Color(accentValue),
-    );
+    ThemeConfig.apply(ThemePreset.fromId(presetId), Color(accentValue));
   }
-
-  // ── Transactions ─────────────────────────────────────────
 
   Future<void> addTransaction(Transaction tx) async {
     await _txBox.put(tx.id, tx.toMap());
     transactions.insert(0, tx);
+    transactions.sort((a, b) => b.date.compareTo(a.date));
   }
 
   Future<void> deleteTransaction(String id) async {
@@ -238,8 +253,6 @@ class AppState {
     await _txBox.clear();
     transactions.clear();
   }
-
-  // ── Custom Categories ────────────────────────────────────
 
   Future<CustomCategory> addCustomCategory({
     required String name,
@@ -263,15 +276,34 @@ class AppState {
     customCategories.removeWhere((c) => c.id == id);
   }
 
-  // ── Currency ─────────────────────────────────────────────
+  Future<InstallmentPlan> addInstallmentPlan({
+    required String name,
+    required double totalAmount,
+    String? note,
+  }) async {
+    final plan = InstallmentPlan(
+      id: _uuid.v4(),
+      name: name,
+      totalAmount: totalAmount,
+      createdAt: DateTime.now(),
+      note: note,
+    );
+    await _installmentBox.put(plan.id, plan.toMap());
+    installmentPlans.insert(0, plan);
+    installmentPlans.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return plan;
+  }
+
+  Future<void> deleteInstallmentPlan(String id) async {
+    await _installmentBox.delete(id);
+    installmentPlans.removeWhere((p) => p.id == id);
+  }
 
   Future<void> setCurrency(CurrencyInfo c) async {
     currency = c;
     Fmt.setCurrency(c);
     await _settingsBox.put('currency_code', c.code);
   }
-
-  // ── Theme ─────────────────────────────────────────────────
 
   Future<void> setTheme(ThemePreset preset, Color accent) async {
     ThemeConfig.apply(preset, accent);
@@ -280,32 +312,91 @@ class AppState {
     AppState._triggerRebuild();
   }
 
-  // ── Computed helpers ─────────────────────────────────────
-
-  /// Returns unique past transaction titles that contain [query],
-  /// ordered by most recent, max [limit] results.
   List<String> suggestTitles(String query, {int limit = 8}) {
     if (query.trim().isEmpty) return [];
     final q = query.toLowerCase();
     final seen = <String>{};
     final results = <String>[];
     for (final tx in transactions) {
-      // transactions is already sorted newest-first
-      final t = tx.title.trim();
-      if (t.toLowerCase().contains(q) && seen.add(t)) {
-        results.add(t);
+      final title = tx.title.trim();
+      if (title.toLowerCase().contains(q) && seen.add(title)) {
+        results.add(title);
         if (results.length >= limit) break;
       }
     }
     return results;
   }
 
+  InstallmentPlan? installmentById(String? id) {
+    if (id == null) return null;
+    for (final plan in installmentPlans) {
+      if (plan.id == id) return plan;
+    }
+    return null;
+  }
+
+  List<Transaction> installmentPayments(String installmentId) {
+    final payments =
+        transactions
+            .where(
+              (tx) =>
+                  tx.type == TransactionType.expense &&
+                  tx.installmentPlanId == installmentId,
+            )
+            .toList()
+          ..sort((a, b) => b.date.compareTo(a.date));
+    return payments;
+  }
+
+  double installmentPaidAmount(String installmentId) => installmentPayments(
+    installmentId,
+  ).fold(0.0, (sum, tx) => sum + tx.amount);
+
+  double installmentRemaining(String installmentId) {
+    final plan = installmentById(installmentId);
+    if (plan == null) return 0;
+    final remaining = plan.totalAmount - installmentPaidAmount(installmentId);
+    return remaining < 0 ? 0 : remaining;
+  }
+
+  double installmentProgress(String installmentId) {
+    final plan = installmentById(installmentId);
+    if (plan == null || plan.totalAmount <= 0) return 0;
+    return (installmentPaidAmount(installmentId) / plan.totalAmount).clamp(
+      0.0,
+      1.0,
+    );
+  }
+
+  bool installmentIsPaidOff(String installmentId) =>
+      installmentRemaining(installmentId) <= 0;
+
+  List<InstallmentPlan> get activeInstallmentPlans {
+    final plans =
+        installmentPlans
+            .where((plan) => installmentRemaining(plan.id) > 0)
+            .toList()
+          ..sort(
+            (a, b) => installmentRemaining(
+              b.id,
+            ).compareTo(installmentRemaining(a.id)),
+          );
+    return plans;
+  }
+
   double get totalIncome => transactions
       .where((t) => t.type == TransactionType.income)
-      .fold(0, (s, t) => s + t.amount);
+      .fold(0.0, (sum, tx) => sum + tx.amount);
+
   double get totalExpense => transactions
       .where((t) => t.type == TransactionType.expense)
-      .fold(0, (s, t) => s + t.amount);
+      .fold(0.0, (sum, tx) => sum + tx.amount);
+
+  double get totalInstallmentOutstanding => activeInstallmentPlans.fold(
+    0.0,
+    (sum, plan) => sum + installmentRemaining(plan.id),
+  );
+
   double get balance => totalIncome - totalExpense;
 
   String categoryLabel(Transaction tx) => tx.customCategoryId != null
@@ -315,6 +406,7 @@ class AppState {
                 ?.name ??
             CategoryMeta.label(tx.category))
       : CategoryMeta.label(tx.category);
+
   IconData categoryIcon(Transaction tx) => tx.customCategoryId != null
       ? (customCategories
                 .where((c) => c.id == tx.customCategoryId)
@@ -322,6 +414,7 @@ class AppState {
                 ?.icon ??
             CategoryMeta.icon(tx.category))
       : CategoryMeta.icon(tx.category);
+
   Color categoryColor(Transaction tx) => tx.customCategoryId != null
       ? (customCategories
                 .where((c) => c.id == tx.customCategoryId)

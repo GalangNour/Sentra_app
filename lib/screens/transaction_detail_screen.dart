@@ -4,6 +4,7 @@ import 'package:sentra_app/core/services/app_state.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
 import 'package:sentra_app/screens/add_transaction_screen.dart';
+import 'package:sentra_app/screens/installment_detail_screen.dart';
 
 class TransactionDetailScreen extends StatefulWidget {
   final Transaction transaction;
@@ -72,8 +73,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
       context: context,
       builder: (_) => Dialog(
         backgroundColor: AppColors.surfaceCard,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -126,8 +126,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
                       ),
                       child: Text(
                         'Batal',
-                        style:
-                            TextStyle(color: AppColors.textSecondary),
+                        style: TextStyle(color: AppColors.textSecondary),
                       ),
                     ),
                   ),
@@ -163,6 +162,13 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
       HapticFeedback.mediumImpact();
       if (mounted) Navigator.of(context).pop(true);
     }
+  }
+
+  Future<void> _openInstallmentDetail(InstallmentPlan plan) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => InstallmentDetailScreen(plan: plan)),
+    );
+    if (mounted) setState(() {});
   }
 
   @override
@@ -241,8 +247,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
           onTap: _openEdit,
           child: Container(
             margin: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
               color: AppColors.primary.withAlpha(25),
               borderRadius: BorderRadius.circular(10),
@@ -251,8 +256,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.edit_rounded,
-                    size: 14, color: AppColors.primary),
+                Icon(Icons.edit_rounded, size: 14, color: AppColors.primary),
                 const SizedBox(width: 5),
                 Text(
                   'Edit',
@@ -270,8 +274,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
     );
   }
 
-  Widget _buildAmountHero(
-      Color catColor, IconData catIcon, String catLabel) {
+  Widget _buildAmountHero(Color catColor, IconData catIcon, String catLabel) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(28),
@@ -337,8 +340,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
           ),
           const SizedBox(height: 8),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
             decoration: BoxDecoration(
               gradient: _typeGradient,
               borderRadius: BorderRadius.circular(20),
@@ -357,8 +359,8 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
     );
   }
 
-  Widget _buildInfoCard(
-      Color catColor, IconData catIcon, String catLabel) {
+  Widget _buildInfoCard(Color catColor, IconData catIcon, String catLabel) {
+    final installment = _state.installmentById(_tx.installmentPlanId);
     return _DetailCard(
       children: [
         _DetailRow(
@@ -385,6 +387,17 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
           value: _isExpense ? 'Pengeluaran' : 'Pemasukan',
           valueColor: _typeColor,
         ),
+        if (installment != null) ...[
+          _divider(),
+          _DetailRow(
+            icon: Icons.account_balance_wallet_rounded,
+            iconColor: AppColors.warning,
+            label: 'Cicilan',
+            value: installment.name,
+            valueColor: AppColors.warning,
+            onTap: () => _openInstallmentDetail(installment),
+          ),
+        ],
         if (_tx.fromScan) ...[
           _divider(),
           _DetailRow(
@@ -551,6 +564,7 @@ class _DetailRow extends StatelessWidget {
   final String value;
   final Color? valueColor;
   final TextStyle? valueStyle;
+  final VoidCallback? onTap;
 
   const _DetailRow({
     required this.icon,
@@ -559,11 +573,12 @@ class _DetailRow extends StatelessWidget {
     required this.value,
     this.valueColor,
     this.valueStyle,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final content = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
@@ -579,23 +594,42 @@ class _DetailRow extends StatelessWidget {
           const SizedBox(width: 14),
           Text(
             label,
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 13,
-            ),
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
           const Spacer(),
-          Text(
-            value,
-            style: valueStyle ??
-                TextStyle(
-                  color: valueColor ?? AppColors.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+          Flexible(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    value,
+                    textAlign: TextAlign.right,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        valueStyle ??
+                        TextStyle(
+                          color: valueColor ?? AppColors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
                 ),
+                if (onTap != null) ...[
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 16,
+                    color: AppColors.textMuted,
+                  ),
+                ],
+              ],
+            ),
           ),
         ],
       ),
     );
+    if (onTap == null) return content;
+    return InkWell(onTap: onTap, child: content);
   }
 }
