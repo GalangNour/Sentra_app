@@ -1,3 +1,6 @@
+# Secret keys — NEVER commit this file
+lib/env.dart
+
 # Miscellaneous
 *.class
 *.log
