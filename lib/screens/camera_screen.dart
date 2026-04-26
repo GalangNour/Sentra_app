@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:sentra_app/core/services/ocr_service.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
-import 'package:sentra_app/screens/add_transaction_screen.dart';
+import 'package:sentra_app/screens/scan_region_screen.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -98,35 +97,20 @@ class _CameraScreenState extends State<CameraScreen>
     if (_controller == null || !_isInitialized || _isProcessing) return;
     HapticFeedback.mediumImpact();
     setState(() => _isProcessing = true);
-    _scanLineCtrl.repeat();
     try {
       final XFile file = await _controller!.takePicture();
-      final result = await OcrService.processReceipt(file.path);
       if (!mounted) return;
-      _scanLineCtrl.stop();
+      setState(() => _isProcessing = false);
       await Navigator.of(context).push(PageRouteBuilder(
-        pageBuilder: (_, a, __) => AddTransactionScreen(
-          scanData: ScanPrefill(
-            merchant: result.merchant,
-            total: result.total,
-            category: result.category,
-            imagePath: result.imagePath,
-            rawText: result.rawText,
-          ),
-        ),
-        transitionsBuilder: (_, a, __, child) {
-          final tween = Tween(begin: const Offset(0, 1), end: Offset.zero)
-              .chain(CurveTween(curve: Curves.easeOutCubic));
-          return SlideTransition(position: a.drive(tween), child: child);
-        },
+        pageBuilder: (_, a, __) => ScanRegionScreen(imagePath: file.path),
+        transitionsBuilder: (_, a, __, child) =>
+            FadeTransition(opacity: a, child: child),
       ));
     } on CameraException catch (e) {
-      _scanLineCtrl.stop();
       if (mounted) _showError('Gagal mengambil foto: ${e.description}');
     } catch (e) {
-      debugPrint('OCR error: $e');
-      _scanLineCtrl.stop();
-      if (mounted) _showError('Gagal memproses struk. Coba lagi.');
+      debugPrint('Capture error: $e');
+      if (mounted) _showError('Gagal mengambil foto. Coba lagi.');
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
@@ -145,7 +129,6 @@ class _CameraScreenState extends State<CameraScreen>
   @override
   void dispose() {
     _controller?.dispose();
-    OcrService.close();
     _scanLineCtrl.dispose();
     _pulseCtrl.dispose();
     super.dispose();

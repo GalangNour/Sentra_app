@@ -13,6 +13,9 @@ class ScanPrefill {
   final TransactionCategory category;
   final String? imagePath;
   final String? rawText;
+  final String source;
+  final String? warning;
+  final List<double> candidateAmounts;
 
   const ScanPrefill({
     required this.merchant,
@@ -20,6 +23,9 @@ class ScanPrefill {
     required this.category,
     this.imagePath,
     this.rawText,
+    this.source = 'mlkit',
+    this.warning,
+    this.candidateAmounts = const [],
   });
 }
 
@@ -231,6 +237,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             _buildTypeSelector(),
             const SizedBox(height: 20),
             _buildAmountInput(),
+            if ((widget.scanData?.candidateAmounts ?? []).isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _buildAmountChips(),
+            ],
             const SizedBox(height: 20),
             _buildDetailsCard(),
             const SizedBox(height: 20),
@@ -251,29 +261,28 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Widget _buildScanBanner() {
     final scan = widget.scanData!;
     final hasTotal = scan.total > 0;
+    final isGemini = scan.source == 'gemini';
+    final bannerColor = hasTotal ? AppColors.income : AppColors.warning;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: (hasTotal ? AppColors.income : AppColors.warning).withAlpha(20),
+        color: bannerColor.withAlpha(20),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: (hasTotal ? AppColors.income : AppColors.warning).withAlpha(51),
-        ),
+        border: Border.all(color: bannerColor.withAlpha(51)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: (hasTotal ? AppColors.income : AppColors.warning)
-                  .withAlpha(26),
+              color: bannerColor.withAlpha(26),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               hasTotal
                   ? Icons.document_scanner_rounded
                   : Icons.warning_amber_rounded,
-              color: hasTotal ? AppColors.income : AppColors.warning,
+              color: bannerColor,
               size: 18,
             ),
           ),
@@ -282,22 +291,44 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  hasTotal
-                      ? 'Hasil scan ditemukan'
-                      : 'Total tidak terdeteksi',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      hasTotal ? 'Hasil scan ditemukan' : 'Total tidak terdeteksi',
+                      style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: (isGemini ? AppColors.primary : AppColors.textMuted)
+                            .withAlpha(30),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: (isGemini ? AppColors.primary : AppColors.textMuted)
+                              .withAlpha(80),
+                        ),
+                      ),
+                      child: Text(
+                        isGemini ? 'Gemini AI' : 'ML Kit',
+                        style: TextStyle(
+                          color: isGemini ? AppColors.primaryLight : AppColors.textMuted,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 Text(
                   hasTotal
                       ? 'Periksa & edit jika ada yang salah'
                       : 'Isi jumlah secara manual',
-                  style: TextStyle(
-                      color: AppColors.textMuted, fontSize: 11),
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 11),
                 ),
               ],
             ),
@@ -319,7 +350,69 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
+  Widget _buildAmountChips() {
+    final candidates = widget.scanData!.candidateAmounts;
+    final currentText = _amountCtrl.text;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Nominal terdeteksi di struk — tap untuk pilih:',
+          style: TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 11,
+              fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: candidates.take(8).map((amount) {
+            final formatted = _fmtEditAmount(amount);
+            final isSelected = currentText == formatted;
+            return GestureDetector(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                setState(() => _amountCtrl.text = formatted);
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 7),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? AppColors.primary.withAlpha(40)
+                      : AppColors.surfaceCard,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isSelected
+                        ? AppColors.primary
+                        : AppColors.surfaceBorder,
+                    width: isSelected ? 1.5 : 1,
+                  ),
+                ),
+                child: Text(
+                  'Rp $formatted',
+                  style: TextStyle(
+                    color: isSelected
+                        ? AppColors.primaryLight
+                        : AppColors.textSecondary,
+                    fontSize: 13,
+                    fontWeight: isSelected
+                        ? FontWeight.w700
+                        : FontWeight.w400,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
   Widget _buildRawOcrSection() {
+    final isGemini = widget.scanData!.source == 'gemini';
     return Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: Container(
@@ -329,13 +422,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           border: Border.all(color: AppColors.surfaceBorder),
         ),
         child: ExpansionTile(
+          initiallyExpanded: true,
           tilePadding:
               const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
           childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
           leading: Icon(Icons.text_snippet_outlined,
               color: AppColors.textMuted, size: 18),
           title: Text(
-            'Teks OCR Mentah',
+            isGemini ? 'Respons Gemini (debug)' : 'Teks OCR Mentah (debug)',
             style: TextStyle(
                 color: AppColors.textSecondary, fontSize: 13),
           ),
