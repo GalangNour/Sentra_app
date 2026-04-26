@@ -76,9 +76,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _openSettings() async {
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+    await Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
     setState(() {});
   }
 
@@ -109,7 +108,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Transaksi Terakhir',
                   style: TextStyle(
                     color: AppColors.textPrimary,
@@ -120,7 +119,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 if (txs.isNotEmpty)
                   Text(
                     '${txs.length} total',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 13,
                     ),
@@ -172,9 +171,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 ),
               ),
-              const Text(
+              Text(
                 'Budget & Keuangan',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                style:
+                    TextStyle(color: AppColors.textMuted, fontSize: 13),
               ),
             ],
           ),
@@ -230,9 +230,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Total Saldo',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                style: TextStyle(
+                    color: AppColors.textSecondary, fontSize: 13),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -245,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
                 child: Text(
                   _state.currency.code,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.primaryLight,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -257,7 +258,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           const SizedBox(height: 10),
           Text(
             Fmt.full(_state.balance),
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textPrimary,
               fontSize: 34,
               fontWeight: FontWeight.w800,
@@ -275,7 +276,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   Icons.arrow_downward_rounded,
                 ),
               ),
-              Container(width: 1, height: 40, color: AppColors.surfaceElevated),
+              Container(
+                  width: 1,
+                  height: 40,
+                  color: AppColors.surfaceElevated),
               Expanded(
                 child: _balanceStat(
                   'Pengeluaran',
@@ -291,7 +295,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _balanceStat(String label, double amount, Color color, IconData icon) {
+  Widget _balanceStat(
+      String label, double amount, Color color, IconData icon) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
@@ -311,7 +316,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             children: [
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textMuted,
                   fontSize: 11,
                 ),
@@ -341,7 +346,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               label: '+ Pengeluaran',
               color: AppColors.expense,
               icon: Icons.remove_circle_outline_rounded,
-              onTap: () => _openAddTransaction(type: TransactionType.expense),
+              onTap: () =>
+                  _openAddTransaction(type: TransactionType.expense),
             ),
           ),
           const SizedBox(width: 10),
@@ -350,7 +356,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               label: '+ Pemasukan',
               color: AppColors.income,
               icon: Icons.add_circle_outline_rounded,
-              onTap: () => _openAddTransaction(type: TransactionType.income),
+              onTap: () =>
+                  _openAddTransaction(type: TransactionType.income),
             ),
           ),
         ],
@@ -404,14 +411,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               color: AppColors.surfaceCard,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.receipt_long_rounded,
               color: AppColors.textMuted,
               size: 32,
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'Belum ada transaksi',
             style: TextStyle(
               color: AppColors.textPrimary,
@@ -420,7 +427,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'Tambah transaksi pertamamu atau\nscan struk belanja',
             textAlign: TextAlign.center,
             style: TextStyle(
@@ -466,7 +473,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             context: context,
             builder: (_) => AlertDialog(
               backgroundColor: AppColors.surfaceCard,
-              title: const Text(
+              title: Text(
                 'Hapus transaksi?',
                 style: TextStyle(color: AppColors.textPrimary),
               ),
@@ -546,7 +553,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     children: [
                       Text(
                         tx.title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.textPrimary,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -578,7 +585,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           const SizedBox(width: 6),
                           Text(
                             Fmt.timeAgo(tx.date),
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.textMuted,
                               fontSize: 11,
                             ),
@@ -600,7 +607,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       ),
                     ),
                     const SizedBox(width: 4),
-                    const Icon(
+                    Icon(
                       Icons.chevron_right_rounded,
                       size: 16,
                       color: AppColors.textMuted,
@@ -624,7 +631,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final savings = income - expense;
     final savingsRate = income > 0 ? savings / income * 100 : 0.0;
 
-    // Category breakdown
     final Map<String, double> catTotals = {};
     final Map<String, Color> catColors = {};
     final Map<String, IconData> catIcons = {};
@@ -648,7 +654,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Statistik',
             style: TextStyle(
               color: AppColors.textPrimary,
@@ -657,13 +663,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Ringkasan keuangan kamu',
-            style: TextStyle(color: AppColors.textMuted, fontSize: 14),
+            style:
+                TextStyle(color: AppColors.textMuted, fontSize: 14),
           ),
           const SizedBox(height: 20),
 
-          // Summary row
           Row(
             children: [
               Expanded(
@@ -687,7 +693,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
           const SizedBox(height: 12),
 
-          // Savings card
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
@@ -730,7 +735,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   children: [
                     const Text(
                       'Savings Rate',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                      style: TextStyle(
+                          color: Colors.white70, fontSize: 12),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -749,7 +755,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
           if (sorted.isNotEmpty) ...[
             const SizedBox(height: 24),
-            const Text(
+            Text(
               'Pengeluaran per Kategori',
               style: TextStyle(
                 color: AppColors.textPrimary,
@@ -760,13 +766,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             const SizedBox(height: 12),
             ...sorted.take(8).map((e) {
               final color = catColors[e.key] ?? AppColors.primary;
-              final icon = catIcons[e.key] ?? Icons.more_horiz_rounded;
+              final icon =
+                  catIcons[e.key] ?? Icons.more_horiz_rounded;
               final pct = grandTotal > 0 ? e.value / grandTotal : 0.0;
 
-              // Get label from key
               String label;
               if (e.key.contains('-')) {
-                // UUID = custom category
                 final c = _state.customCategories
                     .where((c) => c.id == e.key)
                     .firstOrNull;
@@ -774,9 +779,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               } else {
                 try {
                   label = CategoryMeta.label(
-                    TransactionCategory.values.firstWhere(
-                      (v) => v.name == e.key,
-                    ),
+                    TransactionCategory.values
+                        .firstWhere((v) => v.name == e.key),
                   );
                 } catch (_) {
                   label = e.key;
@@ -802,11 +806,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
                                 label,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: AppColors.textPrimary,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
@@ -825,14 +830,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           const SizedBox(height: 5),
                           TweenAnimationBuilder<double>(
                             tween: Tween(begin: 0, end: pct),
-                            duration: const Duration(milliseconds: 700),
+                            duration:
+                                const Duration(milliseconds: 700),
                             curve: Curves.easeOutCubic,
                             builder: (_, v, __) => ClipRRect(
                               borderRadius: BorderRadius.circular(4),
                               child: LinearProgressIndicator(
                                 value: v,
-                                backgroundColor: AppColors.surfaceElevated,
-                                valueColor: AlwaysStoppedAnimation(color),
+                                backgroundColor:
+                                    AppColors.surfaceElevated,
+                                valueColor:
+                                    AlwaysStoppedAnimation(color),
                                 minHeight: 5,
                               ),
                             ),
@@ -846,10 +854,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             }),
           ] else ...[
             const SizedBox(height: 40),
-            const Center(
+            Center(
               child: Text(
                 'Belum ada data pengeluaran',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 14),
+                style: TextStyle(
+                    color: AppColors.textMuted, fontSize: 14),
               ),
             ),
           ],
@@ -858,7 +867,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _statCard(String label, double amount, Color color, IconData icon) {
+  Widget _statCard(
+      String label, double amount, Color color, IconData icon) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -882,7 +892,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+            style: TextStyle(
+                color: AppColors.textMuted, fontSize: 12),
           ),
         ],
       ),
@@ -895,7 +906,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        border: const Border(top: BorderSide(color: AppColors.surfaceBorder)),
+        border: Border(top: BorderSide(color: AppColors.surfaceBorder)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withAlpha(102),
@@ -918,7 +929,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 6, vertical: 6),
                 child: ScaleTransition(
                   scale: _fabScale,
                   child: GestureDetector(
@@ -977,9 +989,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         children: [
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
             decoration: BoxDecoration(
-              color: sel ? AppColors.primary.withAlpha(31) : Colors.transparent,
+              color: sel
+                  ? AppColors.primary.withAlpha(31)
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(

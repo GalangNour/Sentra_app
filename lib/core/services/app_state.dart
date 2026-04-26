@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
+import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
 
 // ─── Currency ─────────────────────────────────────────────
@@ -169,6 +170,11 @@ class AppState {
 
   static const _uuid = Uuid();
 
+  // ── Theme rebuild callback ───────────────────────────────
+  static VoidCallback? _rebuildApp;
+  static void registerRebuild(VoidCallback fn) => _rebuildApp = fn;
+  static void _triggerRebuild() => _rebuildApp?.call();
+
   Future<void> init() async {
     await Hive.initFlutter();
     _txBox = await Hive.openBox('transactions');
@@ -198,6 +204,15 @@ class AppState {
         _settingsBox.get('currency_code', defaultValue: 'IDR') as String;
     currency = CurrencyInfo.fromCode(code);
     Fmt.setCurrency(currency);
+
+    final presetId =
+        _settingsBox.get('theme_preset_id', defaultValue: 'navy') as String;
+    final accentValue =
+        _settingsBox.get('theme_accent', defaultValue: 0xFF6C63FF) as int;
+    ThemeConfig.apply(
+      ThemePreset.fromId(presetId),
+      Color(accentValue),
+    );
   }
 
   // ── Transactions ─────────────────────────────────────────
@@ -254,6 +269,15 @@ class AppState {
     currency = c;
     Fmt.setCurrency(c);
     await _settingsBox.put('currency_code', c.code);
+  }
+
+  // ── Theme ─────────────────────────────────────────────────
+
+  Future<void> setTheme(ThemePreset preset, Color accent) async {
+    ThemeConfig.apply(preset, accent);
+    await _settingsBox.put('theme_preset_id', preset.id);
+    await _settingsBox.put('theme_accent', accent.toARGB32());
+    AppState._triggerRebuild();
   }
 
   // ── Computed helpers ─────────────────────────────────────

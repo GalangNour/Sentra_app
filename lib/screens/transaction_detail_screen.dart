@@ -58,7 +58,6 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
       ),
     );
     if (result == true && mounted) {
-      // Refresh from state
       final updated = _state.transactions.firstWhere(
         (t) => t.id == _tx.id,
         orElse: () => _tx,
@@ -73,7 +72,8 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
       context: context,
       builder: (_) => Dialog(
         backgroundColor: AppColors.surfaceCard,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -93,7 +93,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Hapus Transaksi?',
                 style: TextStyle(
                   color: AppColors.textPrimary,
@@ -102,7 +102,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Transaksi ini akan dihapus secara permanen dan tidak bisa dipulihkan.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
@@ -118,15 +118,16 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(context, false),
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppColors.surfaceBorder),
+                        side: BorderSide(color: AppColors.surfaceBorder),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 13),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Batal',
-                        style: TextStyle(color: AppColors.textSecondary),
+                        style:
+                            TextStyle(color: AppColors.textSecondary),
                       ),
                     ),
                   ),
@@ -160,7 +161,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
     if (confirm == true && mounted) {
       await _state.deleteTransaction(_tx.id);
       HapticFeedback.mediumImpact();
-      if (mounted) Navigator.of(context).pop(true); // signal deletion
+      if (mounted) Navigator.of(context).pop(true);
     }
   }
 
@@ -220,14 +221,14 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.surfaceBorder),
           ),
-          child: const Icon(
+          child: Icon(
             Icons.arrow_back_rounded,
             size: 18,
             color: AppColors.textPrimary,
           ),
         ),
       ),
-      title: const Text(
+      title: Text(
         'Detail Transaksi',
         style: TextStyle(
           color: AppColors.textPrimary,
@@ -240,17 +241,19 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
           onTap: _openEdit,
           child: Container(
             margin: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
               color: AppColors.primary.withAlpha(25),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: AppColors.primary.withAlpha(60)),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.edit_rounded, size: 14, color: AppColors.primary),
-                SizedBox(width: 5),
+                Icon(Icons.edit_rounded,
+                    size: 14, color: AppColors.primary),
+                const SizedBox(width: 5),
                 Text(
                   'Edit',
                   style: TextStyle(
@@ -267,7 +270,8 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
     );
   }
 
-  Widget _buildAmountHero(Color catColor, IconData catIcon, String catLabel) {
+  Widget _buildAmountHero(
+      Color catColor, IconData catIcon, String catLabel) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(28),
@@ -282,7 +286,6 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
       ),
       child: Column(
         children: [
-          // Category icon
           Container(
             width: 64,
             height: 64,
@@ -294,11 +297,9 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
             child: Icon(catIcon, color: catColor, size: 28),
           ),
           const SizedBox(height: 16),
-
-          // Transaction title
           Text(
             _tx.title,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textPrimary,
               fontSize: 20,
               fontWeight: FontWeight.w700,
@@ -306,8 +307,6 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 6),
-
-          // Category badge
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
@@ -324,8 +323,6 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
             ),
           ),
           const SizedBox(height: 20),
-
-          // Amount
           ShaderMask(
             shaderCallback: (b) => _typeGradient.createShader(b),
             child: Text(
@@ -339,10 +336,9 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
             ),
           ),
           const SizedBox(height: 8),
-
-          // Type badge
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
             decoration: BoxDecoration(
               gradient: _typeGradient,
               borderRadius: BorderRadius.circular(20),
@@ -361,7 +357,8 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
     );
   }
 
-  Widget _buildInfoCard(Color catColor, IconData catIcon, String catLabel) {
+  Widget _buildInfoCard(
+      Color catColor, IconData catIcon, String catLabel) {
     return _DetailCard(
       children: [
         _DetailRow(
@@ -430,7 +427,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
                 ),
               ),
               const SizedBox(width: 10),
-              const Text(
+              Text(
                 'Catatan',
                 style: TextStyle(
                   color: AppColors.textSecondary,
@@ -443,7 +440,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
           const SizedBox(height: 12),
           Text(
             _tx.note!,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textPrimary,
               fontSize: 14,
               height: 1.6,
@@ -462,7 +459,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
           iconColor: AppColors.textMuted,
           label: 'ID Transaksi',
           value: _tx.id.substring(0, 8).toUpperCase(),
-          valueStyle: const TextStyle(
+          valueStyle: TextStyle(
             color: AppColors.textMuted,
             fontSize: 12,
             fontFamily: 'monospace',
@@ -582,7 +579,7 @@ class _DetailRow extends StatelessWidget {
           const SizedBox(width: 14),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textSecondary,
               fontSize: 13,
             ),
@@ -590,8 +587,7 @@ class _DetailRow extends StatelessWidget {
           const Spacer(),
           Text(
             value,
-            style:
-                valueStyle ??
+            style: valueStyle ??
                 TextStyle(
                   color: valueColor ?? AppColors.textPrimary,
                   fontSize: 14,

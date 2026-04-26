@@ -7,11 +7,11 @@ import 'package:sentra_app/screens/home_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Init Hive storage + currency settings
+  // Init Hive storage + currency + theme settings
   await AppState.instance.init();
 
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+  SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
     systemNavigationBarColor: AppColors.surface,
@@ -21,15 +21,28 @@ void main() async {
   runApp(const SentraApp());
 }
 
-class SentraApp extends StatelessWidget {
+class SentraApp extends StatefulWidget {
   const SentraApp({super.key});
+
+  @override
+  State<SentraApp> createState() => _SentraAppState();
+}
+
+class _SentraAppState extends State<SentraApp> {
+  @override
+  void initState() {
+    super.initState();
+    AppState.registerRebuild(() {
+      if (mounted) setState(() {});
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Sentra',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.current,
       home: const HomeScreen(),
     );
   }

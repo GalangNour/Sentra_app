@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:sentra_app/core/services/app_state.dart';
 import 'package:sentra_app/core/services/ocr_service.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
-import 'package:sentra_app/core/utils/app_utils.dart';
 import 'package:sentra_app/screens/add_transaction_screen.dart';
 
 class CameraScreen extends StatefulWidget {
@@ -227,14 +225,14 @@ class _CameraScreenState extends State<CameraScreen>
                       color: AppColors.expense, size: 36),
                 ),
                 const SizedBox(height: 20),
-                const Text('Izin Kamera Diperlukan',
+                Text('Izin Kamera Diperlukan',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: 18,
                         fontWeight: FontWeight.w700)),
                 const SizedBox(height: 10),
-                const Text(
+                Text(
                   'Sentra membutuhkan akses kamera untuk scan struk.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -263,7 +261,7 @@ class _CameraScreenState extends State<CameraScreen>
                 const SizedBox(height: 12),
                 GestureDetector(
                   onTap: () => Navigator.of(context).pop(),
-                  child: const Text('Kembali',
+                  child: Text('Kembali',
                       style: TextStyle(
                           color: AppColors.textMuted, fontSize: 14)),
                 ),
@@ -394,7 +392,7 @@ class _CameraScreenState extends State<CameraScreen>
                                   color: AppColors.textMuted),
                             ),
                             const SizedBox(width: 8),
-                            const Text('Memuat kamera...',
+                            Text('Memuat kamera...',
                                 style: TextStyle(
                                     color: AppColors.textMuted,
                                     fontSize: 13)),

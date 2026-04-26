@@ -68,30 +68,52 @@ class OcrService {
   // ─── Total ────────────────────────────────────────────
 
   static double _extractTotal(List<String> lines) {
+    // Priority order: most specific keyword first. Search bottom-up within
+    // each pattern because totals almost always appear at the bottom of receipts.
     final patterns = [
-      RegExp(r'GRAND\s*TOTAL',        caseSensitive: false),
-      RegExp(r'TOTAL\s*BAYAR',        caseSensitive: false),
-      RegExp(r'TOTAL',                caseSensitive: false),
-      RegExp(r'JUMLAH',               caseSensitive: false),
-      RegExp(r'PEMBAYARAN|PAYMENT',   caseSensitive: false),
-      RegExp(r'SUB\s*TOTAL|SUBTOTAL', caseSensitive: false),
+      RegExp(r'GRAND\s*TOTAL',              caseSensitive: false),
+      RegExp(r'TOTAL\s*BAYAR',              caseSensitive: false),
+      RegExp(r'TOTAL\s*PEMBAYARAN',         caseSensitive: false),
+      RegExp(r'YANG\s*HARUS\s*DIBAYAR',     caseSensitive: false),
+      RegExp(r'JUMLAH\s*BAYAR',             caseSensitive: false),
+      RegExp(r'TOTAL',                      caseSensitive: false),
+      RegExp(r'JUMLAH',                     caseSensitive: false),
+      RegExp(r'PEMBAYARAN|PAYMENT',         caseSensitive: false),
     ];
 
     for (final pattern in patterns) {
-      for (int i = 0; i < lines.length; i++) {
-        if (!pattern.hasMatch(lines[i])) continue;
-        final same = _parseAmount(lines[i]);
-        if (same != null && same > 0) return same;
+      // Search from bottom up — skip SUBTOTAL lines when pattern is plain TOTAL
+      for (int i = lines.length - 1; i >= 0; i--) {
+        final line = lines[i];
+        if (!pattern.hasMatch(line)) continue;
+        // Skip subtotal lines when hunting for the final total
+        if (pattern.pattern == r'TOTAL' &&
+            RegExp(r'SUB\s*TOTAL|SUBTOTAL', caseSensitive: false).hasMatch(line)) {
+          continue;
+        }
+
+        final same = _parseCurrencyAmount(line);
+        if (same != null && same >= 1000) return same;
+
         if (i + 1 < lines.length) {
-          final next = _parseAmount(lines[i + 1]);
-          if (next != null && next > 0) return next;
+          final next = _parseCurrencyAmount(lines[i + 1]);
+          if (next != null && next >= 1000) return next;
         }
       }
     }
 
+    // Fallback 1: largest amount in the bottom half of the receipt
     double largest = 0;
+    final mid = lines.length ~/ 2;
+    for (int i = mid; i < lines.length; i++) {
+      final n = _parseCurrencyAmount(lines[i]);
+      if (n != null && n > largest && n < 100000000) largest = n;
+    }
+    if (largest >= 1000) return largest;
+
+    // Fallback 2: largest amount in the entire receipt
     for (final line in lines) {
-      final n = _parseAmount(line);
+      final n = _parseCurrencyAmount(line);
       if (n != null && n > largest && n < 100000000) largest = n;
     }
     return largest;

@@ -20,7 +20,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Pengaturan'),
+        title: Text('Pengaturan',
+            style: TextStyle(color: AppColors.textPrimary)),
         leading: GestureDetector(
           onTap: () => Navigator.of(context).pop(true),
           child: Container(
@@ -29,7 +30,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: AppColors.surfaceCard,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+            child: Icon(Icons.arrow_back_ios_new_rounded,
+                size: 18, color: AppColors.textPrimary),
           ),
         ),
       ),
@@ -38,6 +40,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           _sectionLabel('Mata Uang'),
           _buildCurrencyTile(),
+          const SizedBox(height: 24),
+          _sectionLabel('Tema'),
+          _buildThemeSection(),
           const SizedBox(height: 24),
           _sectionLabel('Kategori Kustom'),
           _buildCustomCategoryList(),
@@ -54,7 +59,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _sectionLabel(String label) => Padding(
         padding: const EdgeInsets.only(bottom: 10),
         child: Text(label,
-            style: const TextStyle(
+            style: TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 16,
                 fontWeight: FontWeight.w700)),
@@ -68,8 +73,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       iconColor: AppColors.income,
       title: _state.currency.name,
       subtitle: '${_state.currency.symbol} · ${_state.currency.code}',
-      trailing: const Icon(Icons.chevron_right_rounded,
-          color: AppColors.textMuted),
+      trailing:
+          Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
       onTap: _showCurrencyPicker,
     );
   }
@@ -85,13 +90,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         maxChildSize: 0.9,
         expand: false,
         builder: (_, scrollCtrl) => Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Column(
             children: [
-              // Handle bar
               Padding(
                 padding: const EdgeInsets.only(top: 12, bottom: 4),
                 child: Container(
@@ -104,7 +109,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Pilih Mata Uang',
                 style: TextStyle(
                   color: AppColors.textPrimary,
@@ -113,8 +118,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Divider(color: AppColors.surfaceBorder, height: 1),
-              // Scrollable list
+              Divider(color: AppColors.surfaceBorder, height: 1),
               Expanded(
                 child: ListView.separated(
                   controller: scrollCtrl,
@@ -123,7 +127,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     top: 4,
                   ),
                   itemCount: CurrencyInfo.all.length,
-                  separatorBuilder: (_, __) => const Divider(
+                  separatorBuilder: (_, __) => Divider(
                     color: AppColors.surfaceBorder,
                     height: 1,
                     indent: 72,
@@ -132,7 +136,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     final c = CurrencyInfo.all[i];
                     final sel = c.code == _state.currency.code;
                     return ListTile(
-                      tileColor: sel ? AppColors.primary.withAlpha(18) : null,
+                      tileColor:
+                          sel ? AppColors.primary.withAlpha(18) : null,
                       leading: Container(
                         width: 44,
                         height: 44,
@@ -158,9 +163,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       title: Text(
                         c.name,
                         style: TextStyle(
-                          color: sel
-                              ? AppColors.textPrimary
-                              : AppColors.textPrimary,
+                          color: AppColors.textPrimary,
                           fontSize: 14,
                           fontWeight:
                               sel ? FontWeight.w600 : FontWeight.w400,
@@ -168,13 +171,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       subtitle: Text(
                         c.code,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.textMuted,
                           fontSize: 12,
                         ),
                       ),
                       trailing: sel
-                          ? const Icon(Icons.check_circle_rounded,
+                          ? Icon(Icons.check_circle_rounded,
                               color: AppColors.primary)
                           : null,
                       onTap: () async {
@@ -193,6 +196,205 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // ─── Theme Section ──────────────────────────────────────
+
+  Widget _buildThemeSection() {
+    final current = ThemeConfig.current;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Preset cards
+        SizedBox(
+          height: 96,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: ThemePreset.all.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (_, i) {
+              final preset = ThemePreset.all[i];
+              final isSelected = preset.id == current.preset.id;
+              return GestureDetector(
+                onTap: () async {
+                  HapticFeedback.selectionClick();
+                  // Keep current accent if it looks good, else use preset default
+                  await _state.setTheme(preset, preset.defaultAccent);
+                  setState(() {});
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 88,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: preset.surfaceCard,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isSelected
+                          ? current.accent
+                          : preset.surfaceBorder,
+                      width: isSelected ? 2 : 1,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: current.accent.withAlpha(60),
+                              blurRadius: 12,
+                              spreadRadius: 1,
+                            )
+                          ]
+                        : null,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: preset.defaultAccent,
+                              borderRadius: BorderRadius.circular(7),
+                            ),
+                            child: isSelected
+                                ? const Icon(Icons.check_rounded,
+                                    color: Colors.white, size: 14)
+                                : null,
+                          ),
+                          const Spacer(),
+                          Icon(preset.icon,
+                              size: 14, color: preset.textMuted),
+                        ],
+                      ),
+                      const Spacer(),
+                      Text(
+                        preset.name,
+                        style: TextStyle(
+                          color: isSelected
+                              ? preset.textPrimary
+                              : preset.textSecondary,
+                          fontSize: 12,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          _colorDot(preset.background),
+                          const SizedBox(width: 3),
+                          _colorDot(preset.surfaceCard),
+                          const SizedBox(width: 3),
+                          _colorDot(preset.surfaceBorder),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // Accent color picker
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceCard,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.surfaceBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Warna Aksen',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: AccentColor.all.map((ac) {
+                  final isSelected =
+                      current.accent.toARGB32() == ac.color.toARGB32();
+                  return GestureDetector(
+                    onTap: () async {
+                      HapticFeedback.selectionClick();
+                      await _state.setTheme(current.preset, ac.color);
+                      setState(() {});
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: ac.color,
+                        shape: BoxShape.circle,
+                        border: isSelected
+                            ? Border.all(color: Colors.white, width: 2.5)
+                            : Border.all(
+                                color: Colors.transparent, width: 2.5),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: ac.color.withAlpha(120),
+                                  blurRadius: 10,
+                                  spreadRadius: 2,
+                                )
+                              ]
+                            : null,
+                      ),
+                      child: isSelected
+                          ? const Icon(Icons.check_rounded,
+                              color: Colors.white, size: 18)
+                          : null,
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Aksen aktif: ${_accentName(current.accent)}',
+                style: TextStyle(
+                    color: AppColors.textMuted, fontSize: 11),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 10),
+
+        // Preview strip
+        Container(
+          height: 6,
+          decoration: BoxDecoration(
+            gradient: AppColors.primaryGradient,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _colorDot(Color color) => Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      );
+
+  String _accentName(Color accent) {
+    final match = AccentColor.all
+        .where((a) => a.color.toARGB32() == accent.toARGB32())
+        .firstOrNull;
+    return match?.name ?? 'Kustom';
+  }
 
   // ─── Custom Categories ──────────────────────────────────
 
@@ -205,7 +407,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: AppColors.surfaceBorder),
         ),
-        child: const Center(
+        child: Center(
           child: Text('Belum ada kategori kustom',
               style:
                   TextStyle(color: AppColors.textMuted, fontSize: 13)),
@@ -228,7 +430,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ListTile(
                 dense: true,
                 leading: Container(
-                  width: 36, height: 36,
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
                     color: cat.color.withAlpha(26),
                     borderRadius: BorderRadius.circular(10),
@@ -236,13 +439,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: Icon(cat.icon, color: cat.color, size: 18),
                 ),
                 title: Text(cat.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: 14,
                         fontWeight: FontWeight.w500)),
                 trailing: GestureDetector(
                   onTap: () => _deleteCategory(cat.id),
-                  child: const Icon(Icons.delete_outline_rounded,
+                  child: Icon(Icons.delete_outline_rounded,
                       color: AppColors.expense, size: 20),
                 ),
               ),
@@ -272,11 +475,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 color: AppColors.primary.withAlpha(76),
                 style: BorderStyle.solid),
           ),
-          child: const Row(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.add_rounded, color: AppColors.primary, size: 20),
-              SizedBox(width: 6),
+              const SizedBox(width: 6),
               Text('Tambah Kategori',
                   style: TextStyle(
                       color: AppColors.primary,
@@ -294,9 +497,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceCard,
-        title: const Text('Hapus Kategori?',
+        title: Text('Hapus Kategori?',
             style: TextStyle(color: AppColors.textPrimary)),
-        content: const Text(
+        content: Text(
             'Transaksi yang menggunakan kategori ini akan menjadi "Lainnya".',
             style: TextStyle(color: AppColors.textSecondary)),
         actions: [
@@ -305,7 +508,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: const Text('Batal')),
           TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Hapus',
+              child: Text('Hapus',
                   style: TextStyle(color: AppColors.expense))),
         ],
       ),
@@ -326,18 +529,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setD) => AlertDialog(
           backgroundColor: AppColors.surfaceCard,
-          title: const Text('Tambah Kategori',
+          title: Text('Tambah Kategori',
               style: TextStyle(
-                  color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w700)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Name input
                 TextField(
                   controller: nameCtrl,
-                  style: const TextStyle(color: AppColors.textPrimary),
+                  style: TextStyle(color: AppColors.textPrimary),
                   decoration: InputDecoration(
                     labelText: 'Nama Kategori',
                     filled: true,
@@ -349,9 +552,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Icon picker
-                const Text('Ikon',
+                Text('Ikon',
                     style: TextStyle(
                         color: AppColors.textSecondary, fontSize: 13)),
                 const SizedBox(height: 8),
@@ -363,7 +564,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     return GestureDetector(
                       onTap: () => setD(() => selectedIcon = icon),
                       child: Container(
-                        width: 40, height: 40,
+                        width: 40,
+                        height: 40,
                         decoration: BoxDecoration(
                           color: sel
                               ? selectedColor.withAlpha(51)
@@ -376,16 +578,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               width: 1.5),
                         ),
                         child: Icon(icon,
-                            color: sel ? selectedColor : AppColors.textMuted,
+                            color:
+                                sel ? selectedColor : AppColors.textMuted,
                             size: 20),
                       ),
                     );
                   }).toList(),
                 ),
                 const SizedBox(height: 16),
-
-                // Color picker
-                const Text('Warna',
+                Text('Warna',
                     style: TextStyle(
                         color: AppColors.textSecondary, fontSize: 13)),
                 const SizedBox(height: 8),
@@ -397,7 +598,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     return GestureDetector(
                       onTap: () => setD(() => selectedColor = color),
                       child: Container(
-                        width: 32, height: 32,
+                        width: 32,
+                        height: 32,
                         decoration: BoxDecoration(
                           color: color,
                           shape: BoxShape.circle,
@@ -405,7 +607,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ? Border.all(color: Colors.white, width: 2.5)
                               : null,
                           boxShadow: sel
-                              ? [BoxShadow(color: color.withAlpha(102), blurRadius: 8)]
+                              ? [
+                                  BoxShadow(
+                                      color: color.withAlpha(102),
+                                      blurRadius: 8)
+                                ]
                               : null,
                         ),
                       ),
@@ -418,7 +624,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Batal',
+                child: Text('Batal',
                     style: TextStyle(color: AppColors.textMuted))),
             TextButton(
               onPressed: () async {
@@ -431,7 +637,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 setState(() {});
                 if (mounted) Navigator.pop(ctx);
               },
-              child: const Text('Simpan',
+              child: Text('Simpan',
                   style: TextStyle(color: AppColors.primary)),
             ),
           ],
@@ -453,9 +659,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           context: context,
           builder: (_) => AlertDialog(
             backgroundColor: AppColors.surfaceCard,
-            title: const Text('Hapus Semua Data?',
+            title: Text('Hapus Semua Data?',
                 style: TextStyle(color: AppColors.textPrimary)),
-            content: const Text(
+            content: Text(
                 'Seluruh riwayat transaksi akan dihapus permanen.',
                 style: TextStyle(color: AppColors.textSecondary)),
             actions: [
@@ -464,7 +670,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: const Text('Batal')),
               TextButton(
                   onPressed: () => Navigator.pop(context, true),
-                  child: const Text('Hapus Semua',
+                  child: Text('Hapus Semua',
                       style: TextStyle(color: AppColors.expense))),
             ],
           ),
@@ -499,7 +705,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Row(
           children: [
             Container(
-              width: 38, height: 38,
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
                 color: iconColor.withAlpha(26),
                 borderRadius: BorderRadius.circular(10),
@@ -512,13 +719,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title,
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppColors.textPrimary,
                           fontSize: 14,
                           fontWeight: FontWeight.w600)),
                   if (subtitle != null)
                     Text(subtitle,
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: AppColors.textMuted, fontSize: 12)),
                 ],
               ),

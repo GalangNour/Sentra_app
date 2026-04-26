@@ -166,11 +166,17 @@ class _ScanResultScreenState extends State<ScanResultScreen>
             color: AppColors.surfaceCard,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+          child: Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: AppColors.textPrimary),
         ),
       ),
-      title: const Text('Konfirmasi Transaksi',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+      title: Text(
+        'Konfirmasi Transaksi',
+        style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w700),
+      ),
     );
   }
 
@@ -209,7 +215,7 @@ class _ScanResultScreenState extends State<ScanResultScreen>
                   hasAmount
                       ? 'Total berhasil ditemukan!'
                       : 'Total tidak terdeteksi',
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 13,
                       fontWeight: FontWeight.w600),
@@ -218,7 +224,7 @@ class _ScanResultScreenState extends State<ScanResultScreen>
                   hasAmount
                       ? 'Periksa & edit jika perlu, lalu simpan'
                       : 'Masukkan jumlah secara manual',
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: AppColors.textMuted, fontSize: 12),
                 ),
               ],
@@ -226,7 +232,8 @@ class _ScanResultScreenState extends State<ScanResultScreen>
           ),
           if (widget.data.imagePath != null)
             Container(
-              width: 40, height: 40,
+              width: 40,
+              height: 40,
               margin: const EdgeInsets.only(left: 8),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
@@ -270,7 +277,7 @@ class _ScanResultScreenState extends State<ScanResultScreen>
             _type == TransactionType.expense
                 ? 'Jumlah Pengeluaran'
                 : 'Jumlah Pemasukan',
-            style: const TextStyle(
+            style: TextStyle(
                 color: AppColors.textSecondary, fontSize: 13),
           ),
           const SizedBox(height: 8),
@@ -293,7 +300,7 @@ class _ScanResultScreenState extends State<ScanResultScreen>
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.5,
                   ),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: '0',
                     hintStyle: TextStyle(
                         color: AppColors.textMuted, fontSize: 34),
@@ -357,9 +364,9 @@ class _ScanResultScreenState extends State<ScanResultScreen>
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
             child: TextField(
               controller: _titleCtrl,
-              style: const TextStyle(
+              style: TextStyle(
                   color: AppColors.textPrimary, fontSize: 14),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Nama / Merchant',
                 prefixIcon: Icon(Icons.store_rounded,
                     size: 18, color: AppColors.textMuted),
@@ -373,13 +380,13 @@ class _ScanResultScreenState extends State<ScanResultScreen>
           Divider(color: AppColors.surfaceBorder, height: 1, indent: 16),
           ListTile(
             dense: true,
-            leading: const Icon(Icons.calendar_today_rounded,
+            leading: Icon(Icons.calendar_today_rounded,
                 size: 18, color: AppColors.textMuted),
-            title: const Text('Tanggal',
+            title: Text('Tanggal',
                 style: TextStyle(
                     color: AppColors.textSecondary, fontSize: 13)),
             trailing: Text(Fmt.date(widget.data.date),
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 13,
                     fontWeight: FontWeight.w600)),
@@ -393,8 +400,8 @@ class _ScanResultScreenState extends State<ScanResultScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.only(left: 4, bottom: 10),
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 10),
           child: Text('Kategori',
               style: TextStyle(
                   color: AppColors.textPrimary,
@@ -454,8 +461,7 @@ class _ScanResultScreenState extends State<ScanResultScreen>
           color: selected ? color.withAlpha(38) : AppColors.surfaceCard,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color:
-                selected ? color.withAlpha(102) : AppColors.surfaceBorder,
+            color: selected ? color.withAlpha(102) : AppColors.surfaceBorder,
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -470,8 +476,7 @@ class _ScanResultScreenState extends State<ScanResultScreen>
                 style: TextStyle(
                   color: selected ? color : AppColors.textSecondary,
                   fontSize: 12,
-                  fontWeight:
-                      selected ? FontWeight.w600 : FontWeight.w400,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                 )),
           ],
         ),
@@ -492,9 +497,9 @@ class _ScanResultScreenState extends State<ScanResultScreen>
           tilePadding:
               const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
           childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-          leading: const Icon(Icons.text_snippet_outlined,
+          leading: Icon(Icons.text_snippet_outlined,
               color: AppColors.textMuted, size: 18),
-          title: const Text('Teks OCR Mentah',
+          title: Text('Teks OCR Mentah',
               style: TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 13,
@@ -511,7 +516,7 @@ class _ScanResultScreenState extends State<ScanResultScreen>
               ),
               child: SelectableText(
                 widget.data.rawText!,
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 11,
                     height: 1.6),
@@ -585,7 +590,7 @@ class _ScanResultScreenState extends State<ScanResultScreen>
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: AppColors.surfaceBorder),
         ),
-        child: const Center(
+        child: Center(
           child: Text('Buang',
               style: TextStyle(
                   color: AppColors.textSecondary,
