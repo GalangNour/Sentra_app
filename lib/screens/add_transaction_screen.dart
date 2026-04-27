@@ -6,29 +6,6 @@ import 'package:sentra_app/core/services/app_state.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
 
-/// Data pre-filled from an OCR scan
-class ScanPrefill {
-  final String merchant;
-  final double total;
-  final TransactionCategory category;
-  final String? imagePath;
-  final String? rawText;
-  final String source;
-  final String? warning;
-  final List<double> candidateAmounts;
-
-  const ScanPrefill({
-    required this.merchant,
-    required this.total,
-    required this.category,
-    this.imagePath,
-    this.rawText,
-    this.source = 'mlkit',
-    this.warning,
-    this.candidateAmounts = const [],
-  });
-}
-
 class AddTransactionScreen extends StatefulWidget {
   final TransactionType initialType;
   final Transaction? editTransaction;
@@ -77,7 +54,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _amountCtrl.text = _fmtEditAmount(edit.amount);
       _noteCtrl.text = edit.note ?? '';
     } else if (scan != null) {
-      _type = TransactionType.expense;
+      _type = scan.type;
       _category = scan.category;
       _titleCtrl.text = scan.merchant;
       if (scan.total > 0) _amountCtrl.text = _fmtEditAmount(scan.total);

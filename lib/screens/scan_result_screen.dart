@@ -7,23 +7,6 @@ import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
 
 // ─── Data Model ───────────────────────────────────────────
-class ParsedReceiptData {
-  final String merchant;
-  final double total;
-  final DateTime date;
-  final TransactionCategory category;
-  final String? imagePath;
-  final String? rawText;
-
-  ParsedReceiptData({
-    required this.merchant,
-    required this.total,
-    required this.date,
-    required this.category,
-    this.imagePath,
-    this.rawText,
-  });
-}
 
 // ─── Screen ───────────────────────────────────────────────
 class ScanResultScreen extends StatefulWidget {
@@ -54,16 +37,20 @@ class _ScanResultScreenState extends State<ScanResultScreen>
   void initState() {
     super.initState();
     _titleCtrl = TextEditingController(text: widget.data.merchant);
-    _amountCtrl =
-        TextEditingController(text: widget.data.total.toInt().toString());
+    _amountCtrl = TextEditingController(
+      text: widget.data.total.toInt().toString(),
+    );
     _category = widget.data.category;
 
     _entryCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 450));
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+    );
     _fade = CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOut);
-    _slide = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
-        .animate(
-            CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOutCubic));
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOutCubic));
     _entryCtrl.forward();
   }
 
@@ -79,32 +66,39 @@ class _ScanResultScreenState extends State<ScanResultScreen>
       _type == TransactionType.expense ? AppColors.expense : AppColors.income;
 
   Future<void> _save() async {
-    final amount = double.tryParse(
+    final amount =
+        double.tryParse(
           _amountCtrl.text.replaceAll('.', '').replaceAll(',', ''),
         ) ??
         widget.data.total;
 
     if (_titleCtrl.text.trim().isEmpty || amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Isi nama dan jumlah transaksi'),
-        backgroundColor: AppColors.surfaceElevated,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Isi nama dan jumlah transaksi'),
+          backgroundColor: AppColors.surfaceElevated,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
       return;
     }
 
-    await _state.addTransaction(Transaction(
-      id: _uuid.v4(),
-      title: _titleCtrl.text.trim(),
-      amount: amount,
-      type: _type,
-      category: _category,
-      customCategoryId: _customCategoryId,
-      date: widget.data.date,
-      fromScan: true,
-    ));
+    await _state.addTransaction(
+      Transaction(
+        id: _uuid.v4(),
+        title: _titleCtrl.text.trim(),
+        amount: amount,
+        type: _type,
+        category: _category,
+        customCategoryId: _customCategoryId,
+        date: widget.data.date,
+        fromScan: true,
+      ),
+    );
 
     setState(() => _saved = true);
     HapticFeedback.mediumImpact();
@@ -166,16 +160,20 @@ class _ScanResultScreenState extends State<ScanResultScreen>
             color: AppColors.surfaceCard,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(Icons.arrow_back_ios_new_rounded,
-              size: 18, color: AppColors.textPrimary),
+          child: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 18,
+            color: AppColors.textPrimary,
+          ),
         ),
       ),
       title: Text(
         'Konfirmasi Transaksi',
         style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 17,
-            fontWeight: FontWeight.w700),
+          color: AppColors.textPrimary,
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -216,16 +214,16 @@ class _ScanResultScreenState extends State<ScanResultScreen>
                       ? 'Total berhasil ditemukan!'
                       : 'Total tidak terdeteksi',
                   style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600),
+                    color: AppColors.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 Text(
                   hasAmount
                       ? 'Periksa & edit jika perlu, lalu simpan'
                       : 'Masukkan jumlah secara manual',
-                  style: TextStyle(
-                      color: AppColors.textMuted, fontSize: 12),
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 12),
                 ),
               ],
             ),
@@ -265,11 +263,17 @@ class _ScanResultScreenState extends State<ScanResultScreen>
         children: [
           Row(
             children: [
-              _typeChip(TransactionType.expense, 'Pengeluaran',
-                  Icons.arrow_upward_rounded),
+              _typeChip(
+                TransactionType.expense,
+                'Pengeluaran',
+                Icons.arrow_upward_rounded,
+              ),
               const SizedBox(width: 8),
-              _typeChip(TransactionType.income, 'Pemasukan',
-                  Icons.arrow_downward_rounded),
+              _typeChip(
+                TransactionType.income,
+                'Pemasukan',
+                Icons.arrow_downward_rounded,
+              ),
             ],
           ),
           const SizedBox(height: 18),
@@ -277,18 +281,20 @@ class _ScanResultScreenState extends State<ScanResultScreen>
             _type == TransactionType.expense
                 ? 'Jumlah Pengeluaran'
                 : 'Jumlah Pemasukan',
-            style: TextStyle(
-                color: AppColors.textSecondary, fontSize: 13),
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
           const SizedBox(height: 8),
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(_state.currency.symbol,
-                  style: TextStyle(
-                      color: _typeColor,
-                      fontSize: 26,
-                      fontWeight: FontWeight.w700)),
+              Text(
+                _state.currency.symbol,
+                style: TextStyle(
+                  color: _typeColor,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: TextField(
@@ -303,7 +309,9 @@ class _ScanResultScreenState extends State<ScanResultScreen>
                   decoration: InputDecoration(
                     hintText: '0',
                     hintStyle: TextStyle(
-                        color: AppColors.textMuted, fontSize: 34),
+                      color: AppColors.textMuted,
+                      fontSize: 34,
+                    ),
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
@@ -321,8 +329,9 @@ class _ScanResultScreenState extends State<ScanResultScreen>
 
   Widget _typeChip(TransactionType t, String label, IconData icon) {
     final sel = _type == t;
-    final color =
-        t == TransactionType.expense ? AppColors.expense : AppColors.income;
+    final color = t == TransactionType.expense
+        ? AppColors.expense
+        : AppColors.income;
     return GestureDetector(
       onTap: () => setState(() => _type = t),
       child: AnimatedContainer(
@@ -332,19 +341,22 @@ class _ScanResultScreenState extends State<ScanResultScreen>
           color: sel ? color.withAlpha(38) : AppColors.surfaceElevated,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-              color: sel ? color.withAlpha(102) : Colors.transparent),
+            color: sel ? color.withAlpha(102) : Colors.transparent,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 14, color: sel ? color : AppColors.textMuted),
             const SizedBox(width: 5),
-            Text(label,
-                style: TextStyle(
-                  color: sel ? color : AppColors.textSecondary,
-                  fontSize: 13,
-                  fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
-                )),
+            Text(
+              label,
+              style: TextStyle(
+                color: sel ? color : AppColors.textSecondary,
+                fontSize: 13,
+                fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
           ],
         ),
       ),
@@ -364,12 +376,14 @@ class _ScanResultScreenState extends State<ScanResultScreen>
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
             child: TextField(
               controller: _titleCtrl,
-              style: TextStyle(
-                  color: AppColors.textPrimary, fontSize: 14),
+              style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
               decoration: InputDecoration(
                 labelText: 'Nama / Merchant',
-                prefixIcon: Icon(Icons.store_rounded,
-                    size: 18, color: AppColors.textMuted),
+                prefixIcon: Icon(
+                  Icons.store_rounded,
+                  size: 18,
+                  color: AppColors.textMuted,
+                ),
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
@@ -380,16 +394,23 @@ class _ScanResultScreenState extends State<ScanResultScreen>
           Divider(color: AppColors.surfaceBorder, height: 1, indent: 16),
           ListTile(
             dense: true,
-            leading: Icon(Icons.calendar_today_rounded,
-                size: 18, color: AppColors.textMuted),
-            title: Text('Tanggal',
-                style: TextStyle(
-                    color: AppColors.textSecondary, fontSize: 13)),
-            trailing: Text(Fmt.date(widget.data.date),
-                style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600)),
+            leading: Icon(
+              Icons.calendar_today_rounded,
+              size: 18,
+              color: AppColors.textMuted,
+            ),
+            title: Text(
+              'Tanggal',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            ),
+            trailing: Text(
+              Fmt.date(widget.data.date),
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
@@ -402,11 +423,14 @@ class _ScanResultScreenState extends State<ScanResultScreen>
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 10),
-          child: Text('Kategori',
-              style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700)),
+          child: Text(
+            'Kategori',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ),
         Wrap(
           spacing: 8,
@@ -468,16 +492,16 @@ class _ScanResultScreenState extends State<ScanResultScreen>
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon,
-                size: 15,
-                color: selected ? color : AppColors.textMuted),
+            Icon(icon, size: 15, color: selected ? color : AppColors.textMuted),
             const SizedBox(width: 5),
-            Text(label,
-                style: TextStyle(
-                  color: selected ? color : AppColors.textSecondary,
-                  fontSize: 12,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                )),
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? color : AppColors.textSecondary,
+                fontSize: 12,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
           ],
         ),
       ),
@@ -494,16 +518,21 @@ class _ScanResultScreenState extends State<ScanResultScreen>
           border: Border.all(color: AppColors.surfaceBorder),
         ),
         child: ExpansionTile(
-          tilePadding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
           childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-          leading: Icon(Icons.text_snippet_outlined,
-              color: AppColors.textMuted, size: 18),
-          title: Text('Teks OCR Mentah',
-              style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500)),
+          leading: Icon(
+            Icons.text_snippet_outlined,
+            color: AppColors.textMuted,
+            size: 18,
+          ),
+          title: Text(
+            'Teks OCR Mentah',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
           iconColor: AppColors.textMuted,
           collapsedIconColor: AppColors.textMuted,
           children: [
@@ -517,9 +546,10 @@ class _ScanResultScreenState extends State<ScanResultScreen>
               child: SelectableText(
                 widget.data.rawText!,
                 style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 11,
-                    height: 1.6),
+                  color: AppColors.textSecondary,
+                  fontSize: 11,
+                  height: 1.6,
+                ),
               ),
             ),
           ],
@@ -541,8 +571,9 @@ class _ScanResultScreenState extends State<ScanResultScreen>
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: (_saved ? AppColors.income : AppColors.primary)
-                  .withAlpha(76),
+              color: (_saved ? AppColors.income : AppColors.primary).withAlpha(
+                76,
+              ),
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),
@@ -553,14 +584,20 @@ class _ScanResultScreenState extends State<ScanResultScreen>
               ? const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.check_circle_rounded,
-                        color: Colors.white, size: 20),
+                    Icon(
+                      Icons.check_circle_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                     SizedBox(width: 8),
-                    Text('Tersimpan!',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700)),
+                    Text(
+                      'Tersimpan!',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ],
                 )
               : const Row(
@@ -568,11 +605,14 @@ class _ScanResultScreenState extends State<ScanResultScreen>
                   children: [
                     Icon(Icons.save_rounded, color: Colors.white, size: 20),
                     SizedBox(width: 8),
-                    Text('Simpan Transaksi',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700)),
+                    Text(
+                      'Simpan Transaksi',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ],
                 ),
         ),
@@ -591,11 +631,14 @@ class _ScanResultScreenState extends State<ScanResultScreen>
           border: Border.all(color: AppColors.surfaceBorder),
         ),
         child: Center(
-          child: Text('Buang',
-              style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500)),
+          child: Text(
+            'Buang',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ),
       ),
     );

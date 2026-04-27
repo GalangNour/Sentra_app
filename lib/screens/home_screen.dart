@@ -9,7 +9,9 @@ import 'package:sentra_app/screens/camera_screen.dart';
 import 'package:sentra_app/screens/installment_detail_screen.dart';
 import 'package:sentra_app/screens/settings_screen.dart';
 import 'package:sentra_app/screens/transaction_detail_screen.dart';
+import 'package:sentra_app/screens/quick_input_screen.dart';
 import 'package:sentra_app/screens/transactions_screen.dart';
+import 'package:sentra_app/widgets/transaction_list_item.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -95,6 +97,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Future<void> _openInstallmentDetail(InstallmentPlan plan) async {
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => InstallmentDetailScreen(plan: plan)),
+    );
+    setState(() {});
+  }
+
+  Future<void> _openQuickInput() async {
+    HapticFeedback.selectionClick();
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const QuickInputScreen()),
     );
     setState(() {});
   }
@@ -387,11 +397,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ],
           ),
           const SizedBox(height: 10),
-          _quickBtn(
-            label: '+ Cicilan Baru',
-            color: AppColors.warning,
-            icon: Icons.account_balance_wallet_rounded,
-            onTap: _openAddInstallment,
+          Row(
+            children: [
+              Expanded(
+                child: _quickBtn(
+                  label: 'Ketik Cepat',
+                  color: AppColors.primary,
+                  icon: Icons.edit_note_rounded,
+                  onTap: _openQuickInput,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _quickBtn(
+                  label: '+ Cicilan',
+                  color: AppColors.warning,
+                  icon: Icons.account_balance_wallet_rounded,
+                  onTap: _openAddInstallment,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -632,11 +657,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildTxCard(Transaction tx, int index) {
-    final color = _state.categoryColor(tx);
-    final icon = _state.categoryIcon(tx);
-    final label = _state.categoryLabel(tx);
-    final isExp = tx.type == TransactionType.expense;
-
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: Duration(milliseconds: 250 + index * 40),
@@ -687,147 +707,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           await _state.deleteTransaction(tx.id);
           setState(() {});
         },
-        child: GestureDetector(
+        child: TransactionListItem(
+          transaction: tx,
+          dateLabel: Fmt.timeAgo(tx.date),
           onTap: () => _openDetail(tx),
-          child: Container(
-            margin: const EdgeInsets.only(top: 10),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceCard,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.surfaceBorder),
-            ),
-            child: Row(
-              children: [
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      width: 46,
-                      height: 46,
-                      decoration: BoxDecoration(
-                        color: color.withAlpha(26),
-                        borderRadius: BorderRadius.circular(13),
-                        border: Border.all(color: color.withAlpha(64)),
-                      ),
-                      child: Icon(icon, color: color, size: 20),
-                    ),
-                    if (tx.fromScan)
-                      Positioned(
-                        right: -4,
-                        bottom: -4,
-                        child: Container(
-                          width: 16,
-                          height: 16,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: AppColors.surfaceCard,
-                              width: 1.5,
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.document_scanner_rounded,
-                            size: 9,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        tx.title,
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 3),
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: color.withAlpha(20),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              label,
-                              style: TextStyle(
-                                color: color,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          if (tx.installmentPlanId != null) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.warning.withAlpha(20),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                'Cicilan',
-                                style: TextStyle(
-                                  color: AppColors.warning,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ],
-                          const SizedBox(width: 6),
-                          Text(
-                            Fmt.timeAgo(tx.date),
-                            style: TextStyle(
-                              color: AppColors.textMuted,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '${isExp ? '-' : '+'}${Fmt.compact(tx.amount)}',
-                      style: TextStyle(
-                        color: isExp ? AppColors.expense : AppColors.income,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      size: 16,
-                      color: AppColors.textMuted,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+          margin: const EdgeInsets.only(top: 10),
         ),
       ),
     );

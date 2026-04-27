@@ -3,6 +3,7 @@ import 'package:sentra_app/core/services/app_state.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
 import 'package:sentra_app/screens/transaction_detail_screen.dart';
+import 'package:sentra_app/widgets/transaction_list_item.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
@@ -63,9 +64,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             surface: AppColors.surfaceCard,
           ),
           scaffoldBackgroundColor: AppColors.background,
-          dialogTheme: DialogThemeData(
-            backgroundColor: AppColors.surfaceCard,
-          ),
+          dialogTheme: DialogThemeData(backgroundColor: AppColors.surfaceCard),
         ),
         child: child!,
       ),
@@ -284,152 +283,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   }
 
   Widget _buildTxCard(Transaction tx, int index) {
-    final color = _state.categoryColor(tx);
-    final icon = _state.categoryIcon(tx);
-    final label = _state.categoryLabel(tx);
-    final isExpense = tx.type == TransactionType.expense;
-
-    return GestureDetector(
+    return TransactionListItem(
+      transaction: tx,
+      dateLabel: Fmt.date(tx.date),
       onTap: () => _openDetail(tx),
-      child: Container(
-        margin: EdgeInsets.only(top: index == 0 ? 0 : 10),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceCard,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.surfaceBorder),
-        ),
-        child: Row(
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    color: color.withAlpha(26),
-                    borderRadius: BorderRadius.circular(13),
-                    border: Border.all(color: color.withAlpha(64)),
-                  ),
-                  child: Icon(icon, color: color, size: 20),
-                ),
-                if (tx.fromScan)
-                  Positioned(
-                    right: -4,
-                    bottom: -4,
-                    child: Container(
-                      width: 16,
-                      height: 16,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppColors.surfaceCard,
-                          width: 1.5,
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.document_scanner_rounded,
-                        size: 9,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    tx.title,
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 3),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: color.withAlpha(20),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          label,
-                          style: TextStyle(
-                            color: color,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      if (tx.installmentPlanId != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.warning.withAlpha(20),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            'Cicilan',
-                            style: TextStyle(
-                              color: AppColors.warning,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      Text(
-                        Fmt.date(tx.date),
-                        style: TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '${isExpense ? '-' : '+'}${Fmt.compact(tx.amount)}',
-                  style: TextStyle(
-                    color: isExpense ? AppColors.expense : AppColors.income,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  size: 16,
-                  color: AppColors.textMuted,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+      margin: EdgeInsets.only(top: index == 0 ? 0 : 10),
     );
   }
 }

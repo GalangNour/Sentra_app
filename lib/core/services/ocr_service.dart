@@ -7,33 +7,10 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 import 'package:sentra_app/core/config/api_config.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
 
-class ParsedReceiptData {
-  final String merchant;
-  final double total;
-  final DateTime date;
-  final TransactionCategory category;
-  final String? imagePath;
-  final String? rawText;
-  final String source; // 'gemini' or 'mlkit'
-  final String? warning; // non-null = recoverable issue occurred
-  final List<double> candidateAmounts; // all amounts detected in receipt
-
-  ParsedReceiptData({
-    required this.merchant,
-    required this.total,
-    required this.date,
-    required this.category,
-    this.imagePath,
-    this.rawText,
-    this.source = 'mlkit',
-    this.warning,
-    this.candidateAmounts = const [],
-  });
-}
-
 class OcrService {
-  static final _recognizer =
-      TextRecognizer(script: TextRecognitionScript.latin);
+  static final _recognizer = TextRecognizer(
+    script: TextRecognitionScript.latin,
+  );
 
   // ─── Public entry point ───────────────────────────────────────────────────
 
@@ -52,10 +29,12 @@ class OcrService {
             msg.contains('401') ||
             msg.contains('403')) {
           throw Exception(
-              'API key Gemini tidak valid. Periksa kembali key di api_config.dart.');
+            'API key Gemini tidak valid. Periksa kembali key di api_config.dart.',
+          );
         }
         // Rate limit or quota → fall back to ML Kit but warn the user
-        final isRateLimit = msg.contains('429') ||
+        final isRateLimit =
+            msg.contains('429') ||
             msg.contains('quota') ||
             msg.contains('RESOURCE_EXHAUSTED') ||
             msg.contains('limit');
@@ -86,8 +65,9 @@ class OcrService {
 
   static Future<ParsedReceiptData> _processWithGemini(String imagePath) async {
     final bytes = await File(imagePath).readAsBytes();
-    final mimeType =
-        imagePath.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+    final mimeType = imagePath.toLowerCase().endsWith('.png')
+        ? 'image/png'
+        : 'image/jpeg';
 
     final model = GenerativeModel(
       model: 'gemini-2.0-flash',
@@ -111,10 +91,7 @@ Aturan wajib:
 ''';
 
     final response = await model.generateContent([
-      Content.multi([
-        TextPart(prompt),
-        DataPart(mimeType, bytes),
-      ]),
+      Content.multi([TextPart(prompt), DataPart(mimeType, bytes)]),
     ]);
 
     final raw = response.text ?? '';
@@ -131,7 +108,7 @@ Aturan wajib:
 
     // Extract the first { ... } block from the response
     final jsonStart = jsonStr.indexOf('{');
-    final jsonEnd   = jsonStr.lastIndexOf('}');
+    final jsonEnd = jsonStr.lastIndexOf('}');
     if (jsonStart == -1 || jsonEnd == -1 || jsonEnd <= jsonStart) {
       throw Exception('Gemini tidak mengembalikan JSON yang valid: $jsonStr');
     }
@@ -151,7 +128,9 @@ Aturan wajib:
       source: 'gemini',
     );
 
-    debugPrint('══ GEMINI RESULT ══ merchant="${result.merchant}" total=${result.total} category=${result.category}');
+    debugPrint(
+      '══ GEMINI RESULT ══ merchant="${result.merchant}" total=${result.total} category=${result.category}',
+    );
     return result;
   }
 
@@ -174,7 +153,9 @@ Aturan wajib:
     final category = _guessCategory(merchant, lines);
     final candidates = _extractAllAmounts(lines);
 
-    debugPrint('══ MLKIT RESULT ══ merchant="$merchant" total=$total candidates=$candidates');
+    debugPrint(
+      '══ MLKIT RESULT ══ merchant="$merchant" total=$total candidates=$candidates',
+    );
     return ParsedReceiptData(
       merchant: merchant,
       total: total,
@@ -191,13 +172,13 @@ Aturan wajib:
 
   static TransactionCategory _categoryFromString(String s) {
     return switch (s.toLowerCase().trim()) {
-      'food'          => TransactionCategory.food,
-      'transport'     => TransactionCategory.transport,
-      'shopping'      => TransactionCategory.shopping,
+      'food' => TransactionCategory.food,
+      'transport' => TransactionCategory.transport,
+      'shopping' => TransactionCategory.shopping,
       'entertainment' => TransactionCategory.entertainment,
-      'health'        => TransactionCategory.health,
-      'bills'         => TransactionCategory.bills,
-      _               => TransactionCategory.other,
+      'health' => TransactionCategory.health,
+      'bills' => TransactionCategory.bills,
+      _ => TransactionCategory.other,
     };
   }
 
@@ -214,15 +195,15 @@ Aturan wajib:
 
   static double _extractTotal(List<String> lines) {
     final patterns = [
-      RegExp(r'GRAND\s*TOTAL',          caseSensitive: false),
-      RegExp(r'TOTAL\s*BAYAR',          caseSensitive: false),
-      RegExp(r'TOTAL\s*PEMBAYARAN',     caseSensitive: false),
+      RegExp(r'GRAND\s*TOTAL', caseSensitive: false),
+      RegExp(r'TOTAL\s*BAYAR', caseSensitive: false),
+      RegExp(r'TOTAL\s*PEMBAYARAN', caseSensitive: false),
       RegExp(r'YANG\s*HARUS\s*DIBAYAR', caseSensitive: false),
-      RegExp(r'JUMLAH\s*BAYAR',         caseSensitive: false),
-      RegExp(r'TOTAL\s*BELANJA',        caseSensitive: false),
-      RegExp(r'TOTAL',                  caseSensitive: false),
-      RegExp(r'JUMLAH',                 caseSensitive: false),
-      RegExp(r'PEMBAYARAN|PAYMENT',     caseSensitive: false),
+      RegExp(r'JUMLAH\s*BAYAR', caseSensitive: false),
+      RegExp(r'TOTAL\s*BELANJA', caseSensitive: false),
+      RegExp(r'TOTAL', caseSensitive: false),
+      RegExp(r'JUMLAH', caseSensitive: false),
+      RegExp(r'PEMBAYARAN|PAYMENT', caseSensitive: false),
     ];
 
     for (final pattern in patterns) {
@@ -231,9 +212,10 @@ Aturan wajib:
         if (_isNonMonetaryLine(line)) continue;
         if (!pattern.hasMatch(line)) continue;
         if (pattern.pattern == r'TOTAL' &&
-            RegExp(r'SUB\s*TOTAL|SUBTOTAL|TOTAL\s*ITEM|TOTAL\s*DISC',
-                    caseSensitive: false)
-                .hasMatch(line)) {
+            RegExp(
+              r'SUB\s*TOTAL|SUBTOTAL|TOTAL\s*ITEM|TOTAL\s*DISC',
+              caseSensitive: false,
+            ).hasMatch(line)) {
           continue;
         }
 
@@ -265,14 +247,81 @@ Aturan wajib:
   }
 
   static TransactionCategory _guessCategory(
-      String merchant, List<String> lines) {
+    String merchant,
+    List<String> lines,
+  ) {
     final text = '$merchant ${lines.join(' ')}'.toLowerCase();
-    if (_any(text, ['indomaret', 'alfamart', 'supermarket', 'hypermart', 'giant', 'carrefour', 'minimarket'])) return TransactionCategory.shopping;
-    if (_any(text, ['mcd', 'mcdonalds', 'kfc', 'burger', 'pizza', 'resto', 'cafe', 'warung', 'makan', 'food', 'bakso', 'ayam', 'nasi', 'kopi', 'coffee'])) return TransactionCategory.food;
-    if (_any(text, ['grab', 'gojek', 'taxi', 'parkir', 'tol', 'spbu', 'pertamina', 'shell', 'bensin'])) return TransactionCategory.transport;
-    if (_any(text, ['pln', 'telkom', 'indihome', 'pdam', 'listrik', 'tagihan', 'wifi', 'internet', 'pulsa'])) return TransactionCategory.bills;
-    if (_any(text, ['apotek', 'klinik', 'rumah sakit', 'dokter', 'farmasi', 'kimia farma'])) return TransactionCategory.health;
-    if (_any(text, ['bioskop', 'cinema', 'cgv', 'game', 'netflix', 'spotify', 'hiburan'])) return TransactionCategory.entertainment;
+    if (_any(text, [
+      'indomaret',
+      'alfamart',
+      'supermarket',
+      'hypermart',
+      'giant',
+      'carrefour',
+      'minimarket',
+    ]))
+      return TransactionCategory.shopping;
+    if (_any(text, [
+      'mcd',
+      'mcdonalds',
+      'kfc',
+      'burger',
+      'pizza',
+      'resto',
+      'cafe',
+      'warung',
+      'makan',
+      'food',
+      'bakso',
+      'ayam',
+      'nasi',
+      'kopi',
+      'coffee',
+    ]))
+      return TransactionCategory.food;
+    if (_any(text, [
+      'grab',
+      'gojek',
+      'taxi',
+      'parkir',
+      'tol',
+      'spbu',
+      'pertamina',
+      'shell',
+      'bensin',
+    ]))
+      return TransactionCategory.transport;
+    if (_any(text, [
+      'pln',
+      'telkom',
+      'indihome',
+      'pdam',
+      'listrik',
+      'tagihan',
+      'wifi',
+      'internet',
+      'pulsa',
+    ]))
+      return TransactionCategory.bills;
+    if (_any(text, [
+      'apotek',
+      'klinik',
+      'rumah sakit',
+      'dokter',
+      'farmasi',
+      'kimia farma',
+    ]))
+      return TransactionCategory.health;
+    if (_any(text, [
+      'bioskop',
+      'cinema',
+      'cgv',
+      'game',
+      'netflix',
+      'spotify',
+      'hiburan',
+    ]))
+      return TransactionCategory.entertainment;
     return TransactionCategory.shopping;
   }
 
@@ -292,8 +341,9 @@ Aturan wajib:
       RegExp(r'(\d)\s*([.,])\s*(\d)'),
       (m) => '${m[1]}${m[2]}${m[3]}',
     );
-    final matches =
-        RegExp(r'(\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?|\d{4,})').allMatches(s);
+    final matches = RegExp(
+      r'(\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?|\d{4,})',
+    ).allMatches(s);
     if (matches.isEmpty) return null;
     double? best;
     for (final m in matches) {
@@ -341,6 +391,5 @@ Aturan wajib:
   static bool _isNumeric(String s) => RegExp(r'^[\d\s.,:/\-]+$').hasMatch(s);
   static bool _isTotalKw(String s) =>
       RegExp(r'total|jumlah|subtotal|grand', caseSensitive: false).hasMatch(s);
-  static bool _any(String t, List<String> kws) =>
-      kws.any((k) => t.contains(k));
+  static bool _any(String t, List<String> kws) => kws.any((k) => t.contains(k));
 }

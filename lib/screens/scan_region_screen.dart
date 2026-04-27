@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:sentra_app/core/models/scan_prefill.dart';
 import 'package:sentra_app/core/services/ocr_service.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/screens/add_transaction_screen.dart';
@@ -34,10 +35,12 @@ class _ScanRegionScreenState extends State<ScanRegionScreen> {
     final codec = await ui.instantiateImageCodec(bytes);
     final frame = await codec.getNextFrame();
     if (mounted) {
-      setState(() => _imageSize = Size(
-            frame.image.width.toDouble(),
-            frame.image.height.toDouble(),
-          ));
+      setState(
+        () => _imageSize = Size(
+          frame.image.width.toDouble(),
+          frame.image.height.toDouble(),
+        ),
+      );
       frame.image.dispose();
     }
   }
@@ -90,55 +93,71 @@ class _ScanRegionScreenState extends State<ScanRegionScreen> {
     HapticFeedback.mediumImpact();
     setState(() => _isProcessing = true);
     try {
-      final scanPath =
-          (!fullImage && _imageSize != null) ? await _cropImage() : widget.imagePath;
+      final scanPath = (!fullImage && _imageSize != null)
+          ? await _cropImage()
+          : widget.imagePath;
       final result = await OcrService.processReceipt(scanPath);
       if (!mounted) return;
       final warning = result.warning;
-      await Navigator.of(context).pushReplacement(PageRouteBuilder(
-        pageBuilder: (_, a, __) => AddTransactionScreen(
-          scanData: ScanPrefill(
-            merchant: result.merchant,
-            total: result.total,
-            category: result.category,
-            imagePath: result.imagePath,
-            rawText: result.rawText,
-            source: result.source,
-            warning: result.warning,
-            candidateAmounts: result.candidateAmounts,
+      await Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (_, a, __) => AddTransactionScreen(
+            scanData: ScanPrefill(
+              merchant: result.merchant,
+              total: result.total,
+              category: result.category,
+              imagePath: result.imagePath,
+              rawText: result.rawText,
+              source: result.source,
+              warning: result.warning,
+              candidateAmounts: result.candidateAmounts,
+            ),
           ),
+          transitionsBuilder: (_, a, __, child) {
+            final tween = Tween(
+              begin: const Offset(0, 1),
+              end: Offset.zero,
+            ).chain(CurveTween(curve: Curves.easeOutCubic));
+            return SlideTransition(position: a.drive(tween), child: child);
+          },
         ),
-        transitionsBuilder: (_, a, __, child) {
-          final tween = Tween(begin: const Offset(0, 1), end: Offset.zero)
-              .chain(CurveTween(curve: Curves.easeOutCubic));
-          return SlideTransition(position: a.drive(tween), child: child);
-        },
-      ));
+      );
       if (warning != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(warning),
-          backgroundColor: AppColors.warning,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 5),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(warning),
+            backgroundColor: AppColors.warning,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            margin: const EdgeInsets.all(16),
+            duration: const Duration(seconds: 5),
+          ),
+        );
       }
     } catch (e) {
       debugPrint('ScanRegion error: $e');
       if (mounted) {
         // Extract a readable message — strip the leading 'Exception: ' prefix
         final rawMsg = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
-        final msg = rawMsg.length > 120 ? '${rawMsg.substring(0, 120)}…' : rawMsg;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(msg.isNotEmpty ? msg : 'Gagal memproses area. Coba lagi.'),
-          backgroundColor: AppColors.expense,
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 6),
-        ));
+        final msg = rawMsg.length > 120
+            ? '${rawMsg.substring(0, 120)}…'
+            : rawMsg;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              msg.isNotEmpty ? msg : 'Gagal memproses area. Coba lagi.',
+            ),
+            backgroundColor: AppColors.expense,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            margin: const EdgeInsets.all(16),
+            duration: const Duration(seconds: 6),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
@@ -185,40 +204,46 @@ class _ScanRegionScreenState extends State<ScanRegionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: LayoutBuilder(builder: (context, constraints) {
-        final containerSize = constraints.biggest;
-        final iSize = _imageSize ?? const Size(3, 4); // fallback portrait ratio
-        final dRect = _fittedRect(containerSize, iSize);
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final containerSize = constraints.biggest;
+          final iSize =
+              _imageSize ?? const Size(3, 4); // fallback portrait ratio
+          final dRect = _fittedRect(containerSize, iSize);
 
-        final selRect = Rect.fromLTRB(
-          dRect.left + _l * dRect.width,
-          dRect.top + _t * dRect.height,
-          dRect.left + _r * dRect.width,
-          dRect.top + _b * dRect.height,
-        );
+          final selRect = Rect.fromLTRB(
+            dRect.left + _l * dRect.width,
+            dRect.top + _t * dRect.height,
+            dRect.left + _r * dRect.width,
+            dRect.top + _b * dRect.height,
+          );
 
-        return Stack(fit: StackFit.expand, children: [
-          Image.file(File(widget.imagePath), fit: BoxFit.contain),
-          CustomPaint(
-            size: containerSize,
-            painter: _SelectionPainter(selRect),
-          ),
-          // Interior — drag to move the entire box
-          Positioned.fromRect(
-            rect: selRect,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onPanUpdate: (d) => _moveBox(d.delta, dRect.size),
-              child: const SizedBox.expand(),
-            ),
-          ),
-          // 4 corner drag handles for resizing
-          ..._buildCornerHandles(selRect, dRect.size),
-          _buildTopBar(),
-          _buildBottomBar(),
-          if (_isProcessing) _buildLoadingOverlay(),
-        ]);
-      }),
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.file(File(widget.imagePath), fit: BoxFit.contain),
+              CustomPaint(
+                size: containerSize,
+                painter: _SelectionPainter(selRect),
+              ),
+              // Interior — drag to move the entire box
+              Positioned.fromRect(
+                rect: selRect,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onPanUpdate: (d) => _moveBox(d.delta, dRect.size),
+                  child: const SizedBox.expand(),
+                ),
+              ),
+              // 4 corner drag handles for resizing
+              ..._buildCornerHandles(selRect, dRect.size),
+              _buildTopBar(),
+              _buildBottomBar(),
+              if (_isProcessing) _buildLoadingOverlay(),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -227,39 +252,52 @@ class _ScanRegionScreenState extends State<ScanRegionScreen> {
     const dot = 13.0; // visual dot
 
     Widget handle(Offset pos, void Function(Offset) onDrag) => Positioned(
-          left: pos.dx - s / 2,
-          top: pos.dy - s / 2,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onPanUpdate: (d) => onDrag(d.delta),
-            child: SizedBox(
-              width: s,
-              height: s,
-              child: Center(
-                child: Container(
-                  width: dot,
-                  height: dot,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                          color: AppColors.primary.withAlpha(160),
-                          blurRadius: 10,
-                          spreadRadius: 2),
-                    ],
+      left: pos.dx - s / 2,
+      top: pos.dy - s / 2,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onPanUpdate: (d) => onDrag(d.delta),
+        child: SizedBox(
+          width: s,
+          height: s,
+          child: Center(
+            child: Container(
+              width: dot,
+              height: dot,
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withAlpha(160),
+                    blurRadius: 10,
+                    spreadRadius: 2,
                   ),
-                ),
+                ],
               ),
             ),
           ),
-        );
+        ),
+      ),
+    );
 
     return [
-      handle(sel.topLeft,     (d) => _updateHandle(dl: d.dx, dt: d.dy, dSize: dSize)),
-      handle(sel.topRight,    (d) => _updateHandle(dr: d.dx, dt: d.dy, dSize: dSize)),
-      handle(sel.bottomLeft,  (d) => _updateHandle(dl: d.dx, db: d.dy, dSize: dSize)),
-      handle(sel.bottomRight, (d) => _updateHandle(dr: d.dx, db: d.dy, dSize: dSize)),
+      handle(
+        sel.topLeft,
+        (d) => _updateHandle(dl: d.dx, dt: d.dy, dSize: dSize),
+      ),
+      handle(
+        sel.topRight,
+        (d) => _updateHandle(dr: d.dx, dt: d.dy, dSize: dSize),
+      ),
+      handle(
+        sel.bottomLeft,
+        (d) => _updateHandle(dl: d.dx, db: d.dy, dSize: dSize),
+      ),
+      handle(
+        sel.bottomRight,
+        (d) => _updateHandle(dr: d.dx, db: d.dy, dSize: dSize),
+      ),
     ];
   }
 
@@ -270,38 +308,47 @@ class _ScanRegionScreenState extends State<ScanRegionScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            child: Row(children: [
-              GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
-                child: Container(
-                  width: 44,
-                  height: 44,
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white24),
+                    ),
+                    child: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black54,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white24),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white12),
                   ),
-                  child: const Icon(Icons.arrow_back_ios_new_rounded,
-                      color: Colors.white, size: 20),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white12),
-                ),
-                child: const Text(
-                  'Pilih Area Scan',
-                  style: TextStyle(
+                  child: const Text(
+                    'Pilih Area Scan',
+                    style: TextStyle(
                       color: Colors.white,
                       fontSize: 14,
-                      fontWeight: FontWeight.w600),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
-              ),
-            ]),
+              ],
+            ),
           ),
         ],
       ),
@@ -323,63 +370,75 @@ class _ScanRegionScreenState extends State<ScanRegionScreen> {
             colors: [Colors.transparent, Colors.black.withAlpha(220)],
           ),
         ),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text(
-            'Seret sudut untuk menyesuaikan area yang ingin di-scan',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white60, fontSize: 12),
-          ),
-          const SizedBox(height: 14),
-          Row(children: [
-            Expanded(
-              child: GestureDetector(
-                onTap: _isProcessing ? null : () => _scan(fullImage: true),
-                child: Container(
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: Colors.white12,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white24),
-                  ),
-                  child: const Center(
-                    child: Text('Scan Semua',
-                        style: TextStyle(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Seret sudut untuk menyesuaikan area yang ingin di-scan',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white60, fontSize: 12),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _isProcessing ? null : () => _scan(fullImage: true),
+                    child: Container(
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: Colors.white12,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white24),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'Scan Semua',
+                          style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
-                            fontSize: 14)),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              flex: 2,
-              child: GestureDetector(
-                onTap: _isProcessing ? null : () => _scan(),
-                child: Container(
-                  height: 50,
-                  decoration: BoxDecoration(
-                    gradient: AppColors.primaryGradient,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                          color: AppColors.primary.withAlpha(100),
-                          blurRadius: 16,
-                          offset: const Offset(0, 4)),
-                    ],
-                  ),
-                  child: const Center(
-                    child: Text('Scan Area Ini',
-                        style: TextStyle(
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: GestureDetector(
+                    onTap: _isProcessing ? null : () => _scan(),
+                    child: Container(
+                      height: 50,
+                      decoration: BoxDecoration(
+                        gradient: AppColors.primaryGradient,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withAlpha(100),
+                            blurRadius: 16,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'Scan Area Ini',
+                          style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w700,
-                            fontSize: 14)),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ]),
-        ]),
+          ],
+        ),
       ),
     );
   }
@@ -388,12 +447,17 @@ class _ScanRegionScreenState extends State<ScanRegionScreen> {
     return Container(
       color: Colors.black54,
       child: const Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          CircularProgressIndicator(color: AppColors.income),
-          SizedBox(height: 16),
-          Text('Memproses area...',
-              style: TextStyle(color: Colors.white, fontSize: 14)),
-        ]),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: AppColors.income),
+            SizedBox(height: 16),
+            Text(
+              'Memproses area...',
+              style: TextStyle(color: Colors.white, fontSize: 14),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -444,9 +508,9 @@ class _SelectionPainter extends CustomPainter {
       );
     }
 
-    corner(sel.left,  sel.top,     1,  1);
-    corner(sel.right, sel.top,    -1,  1);
-    corner(sel.left,  sel.bottom,  1, -1);
+    corner(sel.left, sel.top, 1, 1);
+    corner(sel.right, sel.top, -1, 1);
+    corner(sel.left, sel.bottom, 1, -1);
     corner(sel.right, sel.bottom, -1, -1);
   }
 

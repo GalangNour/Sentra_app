@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sentra_app/core/services/app_state.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
+import 'package:sentra_app/widgets/focus_field_wrapper.dart';
+import 'package:sentra_app/widgets/thousands_separator_formatter.dart';
 
 class AddInstallmentScreen extends StatefulWidget {
   const AddInstallmentScreen({super.key});
@@ -128,7 +130,7 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
                           controller: _amountCtrl,
                           keyboardType: TextInputType.number,
                           autofocus: true,
-                          inputFormatters: [_ThousandsSeparatorFormatter()],
+                          inputFormatters: [ThousandsSeparatorFormatter()],
                           style: TextStyle(
                             color: AppColors.primaryLight,
                             fontSize: 36,
@@ -186,7 +188,7 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
     int maxLines = 1,
     int minLines = 1,
   }) {
-    return _FocusFieldWrapper(
+    return FocusFieldWrapper(
       focusColor: focusColor,
       child: (hasFocus) => TextField(
         controller: controller,
@@ -240,71 +242,6 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _FocusFieldWrapper extends StatefulWidget {
-  final Widget Function(bool hasFocus) child;
-  final Color focusColor;
-
-  const _FocusFieldWrapper({required this.child, required this.focusColor});
-
-  @override
-  State<_FocusFieldWrapper> createState() => _FocusFieldWrapperState();
-}
-
-class _FocusFieldWrapperState extends State<_FocusFieldWrapper> {
-  final _focusNode = FocusNode();
-  bool _hasFocus = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _focusNode.addListener(() {
-      if (mounted) setState(() => _hasFocus = _focusNode.hasFocus);
-    });
-  }
-
-  @override
-  void dispose() {
-    _focusNode.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Focus(
-      focusNode: _focusNode,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        child: widget.child(_hasFocus),
-      ),
-    );
-  }
-}
-
-class _ThousandsSeparatorFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final digits = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
-    if (digits.isEmpty) return newValue.copyWith(text: '');
-    final trimmed = digits.replaceFirst(RegExp(r'^0+'), '');
-    if (trimmed.isEmpty) return newValue.copyWith(text: '0');
-    final buf = StringBuffer();
-    int count = 0;
-    for (int i = trimmed.length - 1; i >= 0; i--) {
-      if (count > 0 && count % 3 == 0) buf.write('.');
-      buf.write(trimmed[i]);
-      count++;
-    }
-    final formatted = buf.toString().split('').reversed.join();
-    return TextEditingValue(
-      text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }
