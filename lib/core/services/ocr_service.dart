@@ -70,9 +70,9 @@ class OcrService {
         : 'image/jpeg';
 
     final model = GenerativeModel(
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       apiKey: ApiConfig.geminiApiKey,
-      requestOptions: const RequestOptions(apiVersion: 'v1beta'),
+      requestOptions: const RequestOptions(apiVersion: 'v1'),
     );
 
     const prompt = '''
