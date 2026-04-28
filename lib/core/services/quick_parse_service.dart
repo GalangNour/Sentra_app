@@ -379,7 +379,7 @@ Aturan wajib:
 
   static const _particles = {
     'di', 'ke', 'dari', 'dan', 'atau', 'yang', 'untuk', 'dengan',
-    'oleh', 'pada', 'dalam', 'di', 'a', 'the',
+    'oleh', 'pada', 'dalam',
   };
 
   static String _toTitleCase(String s) {

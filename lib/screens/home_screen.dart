@@ -1,3 +1,5 @@
+﻿import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -14,6 +16,7 @@ import 'package:sentra_app/screens/camera_screen.dart';
 import 'package:sentra_app/screens/installment_detail_screen.dart';
 import 'package:sentra_app/screens/settings_screen.dart';
 import 'package:sentra_app/screens/transaction_detail_screen.dart';
+import 'package:sentra_app/screens/installments_list_screen.dart';
 import 'package:sentra_app/screens/quick_input_screen.dart';
 import 'package:sentra_app/screens/transactions_screen.dart';
 import 'package:sentra_app/widgets/transaction_list_item.dart';
@@ -381,56 +384,42 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildQuickAdd() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: _quickBtn(
-                  label: '+ Pengeluaran',
-                  color: AppColors.expense,
-                  icon: Icons.remove_circle_outline_rounded,
-                  onTap: () =>
-                      _openAddTransaction(type: TransactionType.expense),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _quickBtn(
-                  label: '+ Pemasukan',
-                  color: AppColors.income,
-                  icon: Icons.add_circle_outline_rounded,
-                  onTap: () =>
-                      _openAddTransaction(type: TransactionType.income),
-                ),
-              ),
-            ],
+          _AiActionsCard(
+            onQuickInput: _openQuickInput,
+            onScan: _openCamera,
           ),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _quickBtn(
-                  label: 'Ketik Cepat',
-                  color: AppColors.primary,
-                  icon: Icons.edit_note_rounded,
-                  onTap: _openQuickInput,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _quickBtn(
-                  label: '+ Cicilan',
-                  color: AppColors.warning,
-                  icon: Icons.account_balance_wallet_rounded,
-                  onTap: _openAddInstallment,
-                ),
-              ),
-            ],
-          ),
+          _buildSecondaryActions(),
         ],
       ),
+    );
+  }
+
+  Widget _buildSecondaryActions() {
+    return Row(
+      children: [
+        Expanded(
+          child: _secondaryBtn(
+            '− Pengeluaran',
+            AppColors.expense,
+            Icons.remove_circle_outline_rounded,
+            () => _openAddTransaction(type: TransactionType.expense),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _secondaryBtn(
+            '+ Pemasukan',
+            AppColors.income,
+            Icons.add_circle_outline_rounded,
+            () => _openAddTransaction(type: TransactionType.income),
+          ),
+        ),
+      ],
     );
   }
 
@@ -527,97 +516,114 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
             )
           else ...[
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.warning.withAlpha(26),
-                    AppColors.surfaceCard,
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const InstallmentsListScreen(),
+                  ),
+                );
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.warning.withAlpha(26),
+                      AppColors.surfaceCard,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: AppColors.warning.withAlpha(60)),
                 ),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppColors.warning.withAlpha(60)),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: AppColors.warning.withAlpha(26),
-                      borderRadius: BorderRadius.circular(14),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: AppColors.warning.withAlpha(26),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(
+                        Icons.payments_rounded,
+                        color: AppColors.warning,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.payments_rounded,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Sisa total cicilan',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            Fmt.full(_snapshot.totalInstallmentOutstanding),
+                            style: const TextStyle(
+                              color: AppColors.warning,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
                       color: AppColors.warning,
+                      size: 16,
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Sisa total cicilan',
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 12,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          Fmt.full(_snapshot.totalInstallmentOutstanding),
-                          style: const TextStyle(
-                            color: AppColors.warning,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 12),
-            ...plans.take(5).map(_buildInstallmentCard),
           ],
         ],
       ),
     );
   }
 
-  Widget _quickBtn({
-    required String label,
-    required Color color,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
+  Widget _secondaryBtn(
+    String label,
+    Color color,
+    IconData icon,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 13),
+        padding: const EdgeInsets.symmetric(vertical: 11),
         decoration: BoxDecoration(
-          color: color.withAlpha(20),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withAlpha(51)),
+          color: color.withAlpha(18),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withAlpha(40)),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(width: 6),
+            Icon(icon, color: color, size: 16),
+            const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
                 color: color,
-                fontSize: 13,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -627,19 +633,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildEmptyState() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 40),
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 40),
       child: Column(
         children: [
           Container(
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: AppColors.surfaceCard,
+              gradient: AppColors.primaryGradient,
               borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withAlpha(60),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
-            child: Icon(
-              Icons.receipt_long_rounded,
-              color: AppColors.textMuted,
+            child: const Icon(
+              Icons.auto_awesome_rounded,
+              color: Colors.white,
               size: 32,
             ),
           ),
@@ -649,12 +662,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             style: TextStyle(
               color: AppColors.textPrimary,
               fontSize: 16,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 6),
           Text(
-            'Tambah transaksi pertamamu atau\nscan struk belanja',
+            'Coba Ketik Cepat dengan AI atau\nscan struk belanjamu di atas',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: AppColors.textMuted,
@@ -1127,7 +1140,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 child: ScaleTransition(
                   scale: _fabScale,
                   child: GestureDetector(
-                    onTap: _openCamera,
+                    onTap: () async {
+                      await _fabCtrl.forward();
+                      await _fabCtrl.reverse();
+                      if (mounted) _openQuickInput();
+                    },
                     child: Container(
                       width: 60,
                       height: 60,
@@ -1144,9 +1161,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         ],
                       ),
                       child: const Icon(
-                        Icons.document_scanner_outlined,
+                        Icons.auto_awesome_rounded,
                         color: Colors.white,
-                        size: 26,
+                        size: 24,
                       ),
                     ),
                   ),
@@ -1200,6 +1217,331 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               color: sel ? AppColors.primary : AppColors.textMuted,
               fontSize: 11,
               fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── _AiActionsCard ──────────────────────────────────────
+
+class _AiActionsCard extends StatefulWidget {
+  final VoidCallback onQuickInput;
+  final VoidCallback onScan;
+  const _AiActionsCard({required this.onQuickInput, required this.onScan});
+
+  @override
+  State<_AiActionsCard> createState() => _AiActionsCardState();
+}
+
+class _AiActionsCardState extends State<_AiActionsCard> {
+  static const _examples = [
+    'kemarin beli kopi 15rb',
+    'bensin 30k tadi pagi, beli lagi 20k',
+    'gajian bulan ini 5jt',
+    'bayar listrik 200rb',
+    'nonton bioskop 54rb',
+  ];
+
+  int _idx = 0;
+  int _chars = 0;
+  bool _erasing = false;
+  bool _cursorOn = true;
+  Timer? _typeTimer;
+  Timer? _cursorTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleNext();
+    _cursorTimer = Timer.periodic(
+      const Duration(milliseconds: 530),
+      (_) { if (mounted) setState(() => _cursorOn = !_cursorOn); },
+    );
+  }
+
+  @override
+  void dispose() {
+    _typeTimer?.cancel();
+    _cursorTimer?.cancel();
+    super.dispose();
+  }
+
+  void _scheduleNext() {
+    _typeTimer = Timer(
+      _erasing
+          ? const Duration(milliseconds: 32)
+          : const Duration(milliseconds: 72),
+      _onTick,
+    );
+  }
+
+  void _onTick() {
+    if (!mounted) return;
+    final text = _examples[_idx];
+    if (!_erasing) {
+      if (_chars < text.length) {
+        setState(() => _chars++);
+        _scheduleNext();
+      } else {
+        _typeTimer = Timer(const Duration(milliseconds: 1800), () {
+          if (!mounted) return;
+          setState(() => _erasing = true);
+          _scheduleNext();
+        });
+      }
+    } else {
+      if (_chars > 0) {
+        setState(() => _chars--);
+        _scheduleNext();
+      } else {
+        setState(() {
+          _erasing = false;
+          _idx = (_idx + 1) % _examples.length;
+        });
+        _typeTimer = Timer(const Duration(milliseconds: 350), () {
+          if (!mounted) return;
+          _scheduleNext();
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final typed = _examples[_idx].substring(0, _chars);
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceCard,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.primary.withAlpha(50)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withAlpha(22),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // ── Gradient header ──
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              gradient: AppColors.primaryGradient,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(21),
+                topRight: Radius.circular(21),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: Colors.white,
+                  size: 13,
+                ),
+                const SizedBox(width: 6),
+                const Text(
+                  'AI · Catat Transaksi Cepat',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // ── Ketik Cepat row ──
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.mediumImpact();
+              widget.onQuickInput();
+            },
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      gradient: AppColors.primaryGradient,
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withAlpha(60),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.edit_note_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Ketik Cepat',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        RichText(
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          text: TextSpan(
+                            children: [
+                              TextSpan(
+                                text: typed.isEmpty
+                                    ? 'Ceritakan transaksimu...'
+                                    : '"$typed',
+                                style: TextStyle(
+                                  color: typed.isEmpty
+                                      ? AppColors.textMuted
+                                      : AppColors.primaryLight,
+                                  fontSize: 12,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                              if (typed.isNotEmpty)
+                                TextSpan(
+                                  text: _cursorOn ? '|' : ' ',
+                                  style: TextStyle(
+                                    color: AppColors.primaryLight,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w300,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    color: AppColors.textMuted,
+                    size: 14,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // ── Divider ──
+          Container(
+            height: 1,
+            margin: const EdgeInsets.only(left: 74),
+            color: AppColors.surfaceBorder,
+          ),
+          // ── Scan Struk row ──
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.mediumImpact();
+              widget.onScan();
+            },
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF1976D2), Color(0xFF0D47A1)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF1565C0).withAlpha(60),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.document_scanner_outlined,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'Scan Struk',
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1565C0).withAlpha(25),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text(
+                                'OCR',
+                                style: TextStyle(
+                                  color: Color(0xFF64B5F6),
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          'Foto struk belanja, data terisi otomatis',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    color: AppColors.textMuted,
+                    size: 14,
+                  ),
+                ],
+              ),
             ),
           ),
         ],
