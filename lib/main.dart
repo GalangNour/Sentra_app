@@ -1,49 +1,91 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:sentra_app/core/services/app_state.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:sentra_app/core/repositories/custom_category_repository.dart';
+import 'package:sentra_app/core/repositories/installment_plan_repository.dart';
+import 'package:sentra_app/core/repositories/settings_repository.dart';
+import 'package:sentra_app/core/repositories/transaction_repository.dart';
+import 'package:sentra_app/core/services/app_storage.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
+import 'package:sentra_app/features/categories/cubit/categories_cubit.dart';
+import 'package:sentra_app/features/installments/cubit/installments_cubit.dart';
+import 'package:sentra_app/features/settings/cubit/settings_cubit.dart';
+import 'package:sentra_app/features/settings/cubit/settings_state.dart';
+import 'package:sentra_app/features/transactions/cubit/transactions_cubit.dart';
 import 'package:sentra_app/screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Init Hive storage + currency + theme settings
-  await AppState.instance.init();
+  final storage = await AppStorage.init();
 
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-  SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.light,
-    systemNavigationBarColor: AppColors.surface,
-    systemNavigationBarIconBrightness: Brightness.light,
-  ));
+  SystemChrome.setSystemUIOverlayStyle(
+    SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: AppColors.surface,
+      systemNavigationBarIconBrightness: Brightness.light,
+    ),
+  );
 
-  runApp(const SentraApp());
+  runApp(SentraApp(storage: storage));
 }
 
-class SentraApp extends StatefulWidget {
-  const SentraApp({super.key});
+class SentraApp extends StatelessWidget {
+  const SentraApp({super.key, required this.storage});
 
-  @override
-  State<SentraApp> createState() => _SentraAppState();
-}
-
-class _SentraAppState extends State<SentraApp> {
-  @override
-  void initState() {
-    super.initState();
-    AppState.registerRebuild(() {
-      if (mounted) setState(() {});
-    });
-  }
+  final AppStorage storage;
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Sentra',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.current,
-      home: const HomeScreen(),
+    return MultiRepositoryProvider(
+      providers: [
+        RepositoryProvider(
+          create: (_) => TransactionRepository(storage.transactionsBox),
+        ),
+        RepositoryProvider(
+          create: (_) => CustomCategoryRepository(storage.customCategoriesBox),
+        ),
+        RepositoryProvider(
+          create: (_) => InstallmentPlanRepository(storage.installmentPlansBox),
+        ),
+        RepositoryProvider(
+          create: (_) => SettingsRepository(storage.settingsBox),
+        ),
+      ],
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider(
+            create: (context) =>
+                SettingsCubit(context.read<SettingsRepository>()),
+          ),
+          BlocProvider(
+            create: (context) =>
+                TransactionsCubit(context.read<TransactionRepository>()),
+          ),
+          BlocProvider(
+            create: (context) =>
+                CategoriesCubit(context.read<CustomCategoryRepository>()),
+          ),
+          BlocProvider(
+            create: (context) =>
+                InstallmentsCubit(context.read<InstallmentPlanRepository>()),
+          ),
+        ],
+        child: BlocBuilder<SettingsCubit, SettingsState>(
+          builder: (context, settingsState) {
+            return MaterialApp(
+              title: 'Sentra',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.build(
+                preset: settingsState.themePreset,
+                accent: settingsState.accent,
+              ),
+              home: const HomeScreen(),
+            );
+          },
+        ),
+      ),
     );
   }
 }

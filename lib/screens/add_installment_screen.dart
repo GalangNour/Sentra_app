@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:sentra_app/core/services/app_state.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:sentra_app/core/services/finance_snapshot.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/widgets/focus_field_wrapper.dart';
 import 'package:sentra_app/widgets/thousands_separator_formatter.dart';
+import 'package:sentra_app/features/categories/cubit/categories_cubit.dart';
+import 'package:sentra_app/features/installments/cubit/installments_cubit.dart';
+import 'package:sentra_app/features/settings/cubit/settings_cubit.dart';
+import 'package:sentra_app/features/transactions/cubit/transactions_cubit.dart';
 
 class AddInstallmentScreen extends StatefulWidget {
   const AddInstallmentScreen({super.key});
@@ -13,10 +18,22 @@ class AddInstallmentScreen extends StatefulWidget {
 }
 
 class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
-  final _state = AppState.instance;
   final _nameCtrl = TextEditingController();
   final _amountCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
+  late FinanceSnapshot _snapshot;
+
+  FinanceSnapshot _readSnapshot() {
+    return FinanceSnapshot(
+      transactions: context.read<TransactionsCubit>().state.transactions,
+      customCategories: context.read<CategoriesCubit>().state.customCategories,
+      installmentPlans: context
+          .read<InstallmentsCubit>()
+          .state
+          .installmentPlans,
+      currency: context.read<SettingsCubit>().state.currency,
+    );
+  }
 
   @override
   void dispose() {
@@ -45,7 +62,7 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
       return;
     }
 
-    await _state.addInstallmentPlan(
+    await context.read<InstallmentsCubit>().addInstallmentPlan(
       name: _nameCtrl.text.trim(),
       totalAmount: amount,
       note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
@@ -57,6 +74,8 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    _snapshot = _readSnapshot();
+    _snapshot.applyCurrency();
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -117,7 +136,7 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
                   Row(
                     children: [
                       Text(
-                        _state.currency.symbol,
+                        _snapshot.currency.symbol,
                         style: TextStyle(
                           color: AppColors.primaryLight,
                           fontSize: 28,

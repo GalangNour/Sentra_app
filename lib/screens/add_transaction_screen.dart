@@ -1,10 +1,15 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
-import 'package:sentra_app/core/services/app_state.dart';
+import 'package:sentra_app/core/services/finance_snapshot.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
+import 'package:sentra_app/features/categories/cubit/categories_cubit.dart';
+import 'package:sentra_app/features/installments/cubit/installments_cubit.dart';
+import 'package:sentra_app/features/settings/cubit/settings_cubit.dart';
+import 'package:sentra_app/features/transactions/cubit/transactions_cubit.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   final TransactionType initialType;
@@ -25,7 +30,6 @@ class AddTransactionScreen extends StatefulWidget {
 }
 
 class _AddTransactionScreenState extends State<AddTransactionScreen> {
-  final _state = AppState.instance;
   static const _uuid = Uuid();
 
   late TransactionType _type;
@@ -38,6 +42,31 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   DateTime _date = DateTime.now();
   List<String> _suggestions = [];
   bool _showSuggestions = false;
+  late FinanceSnapshot _snapshot;
+
+  FinanceSnapshot _readSnapshot() {
+    return FinanceSnapshot(
+      transactions: context.read<TransactionsCubit>().state.transactions,
+      customCategories: context.read<CategoriesCubit>().state.customCategories,
+      installmentPlans: context
+          .read<InstallmentsCubit>()
+          .state
+          .installmentPlans,
+      currency: context.read<SettingsCubit>().state.currency,
+    );
+  }
+
+  FinanceSnapshot _watchSnapshot() {
+    return FinanceSnapshot(
+      transactions: context.watch<TransactionsCubit>().state.transactions,
+      customCategories: context.watch<CategoriesCubit>().state.customCategories,
+      installmentPlans: context
+          .watch<InstallmentsCubit>()
+          .state
+          .installmentPlans,
+      currency: context.watch<SettingsCubit>().state.currency,
+    );
+  }
 
   @override
   void initState() {
@@ -70,7 +99,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   void _onTitleChanged() {
     final q = _titleCtrl.text;
-    final results = _state.suggestTitles(q);
+    final results = _readSnapshot().suggestTitles(q);
     final exact = results.length == 1 && results.first == q;
     setState(() {
       _suggestions = results;
@@ -111,8 +140,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _type == TransactionType.expense ? AppColors.expense : AppColors.income;
 
   List<InstallmentPlan> get _availableInstallments {
-    final plans = _state.activeInstallmentPlans.toList();
-    final current = _state.installmentById(_installmentPlanId);
+    final plans = _snapshot.activeInstallmentPlans.toList();
+    final current = _snapshot.installmentById(_installmentPlanId);
     if (current != null && !plans.any((plan) => plan.id == current.id)) {
       plans.insert(0, current);
     }
@@ -122,9 +151,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   double _selectedInstallmentRemaining({String? excludingTransactionId}) {
     final planId = _installmentPlanId;
     if (planId == null) return 0;
-    final plan = _state.installmentById(planId);
+    final plan = _snapshot.installmentById(planId);
     if (plan == null) return 0;
-    final paid = _state.transactions
+    final paid = _snapshot.transactions
         .where(
           (tx) =>
               tx.type == TransactionType.expense &&
@@ -194,9 +223,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
 
     if (edit != null) {
-      await _state.updateTransaction(tx);
+      await context.read<TransactionsCubit>().updateTransaction(tx);
     } else {
-      await _state.addTransaction(tx);
+      await context.read<TransactionsCubit>().addTransaction(tx);
     }
 
     HapticFeedback.mediumImpact();
@@ -224,6 +253,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    _snapshot = _watchSnapshot();
+    _snapshot.applyCurrency();
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -688,7 +719,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Text(
-                _state.currency.symbol,
+                _snapshot.currency.symbol,
                 style: TextStyle(
                   color: _typeColor,
                   fontSize: 28,
@@ -765,7 +796,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   Widget _buildInstallmentPicker() {
     final plans = _availableInstallments;
-    final selectedPlan = _state.installmentById(_installmentPlanId);
+    final selectedPlan = _snapshot.installmentById(_installmentPlanId);
     final remaining = selectedPlan == null
         ? 0.0
         : _selectedInstallmentRemaining(
@@ -859,7 +890,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     final selected = _installmentPlanId == plan.id;
                     final planRemaining = selected
                         ? remaining
-                        : _state.installmentRemaining(plan.id);
+                        : _snapshot.installmentRemaining(plan.id);
                     return GestureDetector(
                       onTap: () {
                         setState(() {
@@ -1106,7 +1137,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 }),
               );
             }),
-            ..._state.customCategories.map((cc) {
+            ..._snapshot.customCategories.map((cc) {
               final sel = _customCategoryId == cc.id;
               return _catChip(
                 label: cc.name,

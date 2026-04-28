@@ -11,7 +11,10 @@ class QuickParseService {
   // Set true selama development untuk skip API call dan hemat quota.
   static const bool debugMode = false;
 
-  static Future<List<ParsedTransaction>> parse(String text, {bool useAI = true}) async {
+  static Future<List<ParsedTransaction>> parse(
+    String text, {
+    bool useAI = true,
+  }) async {
     if (debugMode) {
       await Future.delayed(const Duration(milliseconds: 800));
       return _mockResults(text);
@@ -35,7 +38,9 @@ class QuickParseService {
               return await _parseWithGemini(text);
             } catch (retryErr) {
               if (!_is503(retryErr) || attempt == 2) {
-                debugPrint('QuickParse: retry $attempt failed ($retryErr), fallback to local');
+                debugPrint(
+                  'QuickParse: retry $attempt failed ($retryErr), fallback to local',
+                );
                 break;
               }
             }
@@ -50,7 +55,9 @@ class QuickParseService {
 
   static bool _is503(Object e) {
     final s = e.toString();
-    return s.contains('503') || s.contains('UNAVAILABLE') || s.contains('high demand');
+    return s.contains('503') ||
+        s.contains('UNAVAILABLE') ||
+        s.contains('high demand');
   }
 
   // ─── Mock ─────────────────────────────────────────────────
@@ -99,7 +106,8 @@ class QuickParseService {
     final todayStr =
         '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
 
-    final prompt = '''
+    final prompt =
+        '''
 Kamu adalah parser transaksi keuangan untuk aplikasi finance Indonesia.
 Ekstrak SEMUA transaksi yang disebutkan dalam kalimat berikut.
 
@@ -149,7 +157,8 @@ Aturan wajib:
 
     final start = jsonStr.indexOf('[');
     final end = jsonStr.lastIndexOf(']');
-    if (start == -1 || end <= start) throw Exception('no JSON array in response');
+    if (start == -1 || end <= start)
+      throw Exception('no JSON array in response');
 
     final List<dynamic> arr = jsonDecode(jsonStr.substring(start, end + 1));
     if (arr.isEmpty) throw Exception('empty array in response');
@@ -164,12 +173,13 @@ Aturan wajib:
     String rawInput,
     DateTime today,
   ) {
-    final type = (data['type'] as String? ?? 'expense').toLowerCase() == 'income'
+    final type =
+        (data['type'] as String? ?? 'expense').toLowerCase() == 'income'
         ? TransactionType.income
         : TransactionType.expense;
     final noteRaw = data['note'] as String?;
     return ParsedTransaction(
-      title: (data['title'] as String? ?? rawInput).trim(),
+      title: _toTitleCase((data['title'] as String? ?? rawInput).trim()),
       amount: ((data['amount'] ?? 0) as num).toDouble(),
       type: type,
       category: _categoryFromString(data['category'] as String? ?? '', type),
@@ -195,9 +205,8 @@ Aturan wajib:
     final amount = _extractAmount(text) ?? 0;
     final type = _detectType(text);
     final category = _detectCategory(text, type);
-    final title = _extractTitle(text);
     return ParsedTransaction(
-      title: title,
+      title: _toTitleCase(_extractTitle(text)),
       amount: amount,
       type: type,
       category: category,
@@ -208,12 +217,18 @@ Aturan wajib:
   }
 
   static double? _extractAmount(String text) {
-    var m = RegExp(r'([\d]+(?:[.,]\d+)?)\s*(?:juta?|jt)\b', caseSensitive: false).firstMatch(text);
+    var m = RegExp(
+      r'([\d]+(?:[.,]\d+)?)\s*(?:juta?|jt)\b',
+      caseSensitive: false,
+    ).firstMatch(text);
     if (m != null) {
       final n = double.tryParse(m.group(1)!.replaceAll(',', '.'));
       if (n != null) return n * 1000000;
     }
-    m = RegExp(r'([\d]+(?:[.,]\d+)?)\s*(?:ribu?|rb|k)\b', caseSensitive: false).firstMatch(text);
+    m = RegExp(
+      r'([\d]+(?:[.,]\d+)?)\s*(?:ribu?|rb|k)\b',
+      caseSensitive: false,
+    ).firstMatch(text);
     if (m != null) {
       final n = double.tryParse(m.group(1)!.replaceAll(',', '.'));
       if (n != null) return n * 1000;
@@ -230,25 +245,112 @@ Aturan wajib:
 
   static TransactionType _detectType(String text) {
     final lower = text.toLowerCase();
-    const incomeWords = ['terima', 'dapat', 'gaji', 'gajian', 'masuk', 'bonus', 'honor', 'upah', 'freelance', 'dividen', 'cashback', 'refund'];
-    if (incomeWords.any((w) => lower.contains(w))) return TransactionType.income;
+    const incomeWords = [
+      'terima',
+      'dapat',
+      'gaji',
+      'gajian',
+      'masuk',
+      'bonus',
+      'honor',
+      'upah',
+      'freelance',
+      'dividen',
+      'cashback',
+      'refund',
+    ];
+    if (incomeWords.any((w) => lower.contains(w)))
+      return TransactionType.income;
     return TransactionType.expense;
   }
 
-  static TransactionCategory _detectCategory(String text, TransactionType type) {
+  static TransactionCategory _detectCategory(
+    String text,
+    TransactionType type,
+  ) {
     final lower = text.toLowerCase();
     if (type == TransactionType.income) {
-      if (lower.contains('gaji') || lower.contains('gajian') || lower.contains('upah')) return TransactionCategory.salary;
-      if (lower.contains('invest') || lower.contains('dividen')) return TransactionCategory.investment;
+      if (lower.contains('gaji') ||
+          lower.contains('gajian') ||
+          lower.contains('upah'))
+        return TransactionCategory.salary;
+      if (lower.contains('invest') || lower.contains('dividen'))
+        return TransactionCategory.investment;
       return TransactionCategory.other;
     }
     const Map<TransactionCategory, List<String>> cats = {
-      TransactionCategory.food: ['makan', 'minum', 'kopi', 'cafe', 'restoran', 'warung', 'nasi', 'bakso', 'ayam', 'pizza', 'burger', 'sushi', 'martabak', 'indomie', 'snack', 'jajan', 'sarapan', 'mcd', 'kfc', 'boba'],
-      TransactionCategory.transport: ['bensin', 'bbm', 'grab', 'gojek', 'ojek', 'taksi', 'taxi', 'bus', 'kereta', 'parkir', 'tol'],
-      TransactionCategory.shopping: ['shopee', 'tokopedia', 'lazada', 'baju', 'sepatu', 'belanja', 'online'],
-      TransactionCategory.entertainment: ['nonton', 'bioskop', 'netflix', 'spotify', 'game', 'liburan', 'konser'],
-      TransactionCategory.health: ['obat', 'dokter', 'klinik', 'rumah sakit', 'vitamin', 'apotek'],
-      TransactionCategory.bills: ['listrik', 'air', 'internet', 'wifi', 'pln', 'pdam', 'tagihan', 'pulsa', 'token'],
+      TransactionCategory.food: [
+        'makan',
+        'minum',
+        'kopi',
+        'cafe',
+        'restoran',
+        'warung',
+        'nasi',
+        'bakso',
+        'ayam',
+        'pizza',
+        'burger',
+        'sushi',
+        'martabak',
+        'indomie',
+        'snack',
+        'jajan',
+        'sarapan',
+        'mcd',
+        'kfc',
+        'boba',
+      ],
+      TransactionCategory.transport: [
+        'bensin',
+        'bbm',
+        'grab',
+        'gojek',
+        'ojek',
+        'taksi',
+        'taxi',
+        'bus',
+        'kereta',
+        'parkir',
+        'tol',
+      ],
+      TransactionCategory.shopping: [
+        'shopee',
+        'tokopedia',
+        'lazada',
+        'baju',
+        'sepatu',
+        'belanja',
+        'online',
+      ],
+      TransactionCategory.entertainment: [
+        'nonton',
+        'bioskop',
+        'netflix',
+        'spotify',
+        'game',
+        'liburan',
+        'konser',
+      ],
+      TransactionCategory.health: [
+        'obat',
+        'dokter',
+        'klinik',
+        'rumah sakit',
+        'vitamin',
+        'apotek',
+      ],
+      TransactionCategory.bills: [
+        'listrik',
+        'air',
+        'internet',
+        'wifi',
+        'pln',
+        'pdam',
+        'tagihan',
+        'pulsa',
+        'token',
+      ],
     };
     for (final entry in cats.entries) {
       if (entry.value.any((w) => lower.contains(w))) return entry.key;
@@ -258,15 +360,48 @@ Aturan wajib:
 
   static String _extractTitle(String text) {
     var t = text.trim();
-    t = t.replaceAll(RegExp(r'[\d]+(?:[.,]\d+)?\s*(?:juta?|jt|ribu?|rb|k)\b', caseSensitive: false), '');
+    t = t.replaceAll(
+      RegExp(
+        r'[\d]+(?:[.,]\d+)?\s*(?:juta?|jt|ribu?|rb|k)\b',
+        caseSensitive: false,
+      ),
+      '',
+    );
     t = t.replaceAll(RegExp(r'\b\d{1,3}(?:\.\d{3})+\b'), '');
     t = t.replaceAll(RegExp(r'\b\d{4,}\b'), '');
-    t = t.replaceAll(RegExp(r'^(?:beli|bayar|dapat|terima)\s+', caseSensitive: false), '');
+    t = t.replaceAll(
+      RegExp(r'^(?:beli|bayar|dapat|terima)\s+', caseSensitive: false),
+      '',
+    );
     t = t.replaceAll(RegExp(r'\s+'), ' ').trim();
     return t.isEmpty ? text.trim() : t;
   }
 
-  static TransactionCategory _categoryFromString(String s, TransactionType type) {
+  static const _particles = {
+    'di', 'ke', 'dari', 'dan', 'atau', 'yang', 'untuk', 'dengan',
+    'oleh', 'pada', 'dalam', 'di', 'a', 'the',
+  };
+
+  static String _toTitleCase(String s) {
+    final words = s.trim().split(RegExp(r'\s+'));
+    final result = <String>[];
+    for (var i = 0; i < words.length; i++) {
+      final word = words[i];
+      if (word.isEmpty) continue;
+      final lower = word.toLowerCase();
+      if (i > 0 && _particles.contains(lower)) {
+        result.add(lower);
+      } else {
+        result.add(lower[0].toUpperCase() + lower.substring(1));
+      }
+    }
+    return result.join(' ');
+  }
+
+  static TransactionCategory _categoryFromString(
+    String s,
+    TransactionType type,
+  ) {
     return switch (s.toLowerCase().trim()) {
       'food' => TransactionCategory.food,
       'transport' => TransactionCategory.transport,

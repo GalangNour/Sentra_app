@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
 import 'package:sentra_app/core/models/parsed_transaction.dart';
-import 'package:sentra_app/core/services/app_state.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
+import 'package:sentra_app/features/transactions/cubit/transactions_cubit.dart';
 import 'package:sentra_app/widgets/thousands_separator_formatter.dart';
 
 class QuickParseResultScreen extends StatefulWidget {
@@ -18,7 +19,6 @@ class QuickParseResultScreen extends StatefulWidget {
 
 class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
   static const _uuid = Uuid();
-  final _state = AppState.instance;
 
   late TransactionType _type;
   late TransactionCategory _category;
@@ -33,7 +33,9 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
     _type = widget.parsed.type;
     _category = widget.parsed.category;
     _titleCtrl = TextEditingController(text: widget.parsed.title);
-    _amountCtrl = TextEditingController(text: _formatAmount(widget.parsed.amount));
+    _amountCtrl = TextEditingController(
+      text: _formatAmount(widget.parsed.amount),
+    );
     _noteCtrl = TextEditingController(text: widget.parsed.note ?? '');
     _date = widget.parsed.date;
   }
@@ -62,8 +64,7 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
   double get _parsedAmount =>
       double.tryParse(_amountCtrl.text.replaceAll('.', '')) ?? 0;
 
-  bool get _canSave =>
-      _titleCtrl.text.trim().isNotEmpty && _parsedAmount > 0;
+  bool get _canSave => _titleCtrl.text.trim().isNotEmpty && _parsedAmount > 0;
 
   Future<void> _pickDate() async {
     HapticFeedback.selectionClick();
@@ -99,7 +100,7 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
       note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
     );
 
-    await _state.addTransaction(tx);
+    await context.read<TransactionsCubit>().addTransaction(tx);
     if (!mounted) return;
 
     // Show brief success snackbar before popping
@@ -171,7 +172,11 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
         children: [
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textSecondary, size: 20),
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: AppColors.textSecondary,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 4),
           Text(
@@ -290,7 +295,11 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: selected ? color : AppColors.textMuted, size: 16),
+              Icon(
+                icon,
+                color: selected ? color : AppColors.textMuted,
+                size: 16,
+              ),
               const SizedBox(width: 6),
               Text(
                 label,
@@ -427,7 +436,9 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
               color: selected ? color.withAlpha(38) : AppColors.surfaceCard,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: selected ? color.withAlpha(120) : AppColors.surfaceBorder,
+                color: selected
+                    ? color.withAlpha(120)
+                    : AppColors.surfaceBorder,
               ),
             ),
             child: Row(
@@ -497,7 +508,11 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
         ),
         child: Row(
           children: [
-            Icon(Icons.calendar_today_rounded, color: AppColors.primary, size: 18),
+            Icon(
+              Icons.calendar_today_rounded,
+              color: AppColors.primary,
+              size: 18,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -509,7 +524,11 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
                 ),
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 18),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textMuted,
+              size: 18,
+            ),
           ],
         ),
       ),

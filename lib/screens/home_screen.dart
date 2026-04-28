@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:sentra_app/core/services/app_state.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:sentra_app/core/services/finance_snapshot.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
+import 'package:sentra_app/features/categories/cubit/categories_cubit.dart';
+import 'package:sentra_app/features/installments/cubit/installments_cubit.dart';
+import 'package:sentra_app/features/settings/cubit/settings_cubit.dart';
+import 'package:sentra_app/features/transactions/cubit/transactions_cubit.dart';
 import 'package:sentra_app/screens/add_installment_screen.dart';
 import 'package:sentra_app/screens/add_transaction_screen.dart';
 import 'package:sentra_app/screens/camera_screen.dart';
@@ -21,10 +26,22 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
-  final _state = AppState.instance;
   int _tabIndex = 0;
   late AnimationController _fabCtrl;
   late Animation<double> _fabScale;
+  late FinanceSnapshot _snapshot;
+
+  FinanceSnapshot _watchSnapshot() {
+    return FinanceSnapshot(
+      transactions: context.watch<TransactionsCubit>().state.transactions,
+      customCategories: context.watch<CategoriesCubit>().state.customCategories,
+      installmentPlans: context
+          .watch<InstallmentsCubit>()
+          .state
+          .installmentPlans,
+      currency: context.watch<SettingsCubit>().state.currency,
+    );
+  }
 
   @override
   void initState() {
@@ -57,7 +74,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             FadeTransition(opacity: a, child: child),
       ),
     );
-    setState(() {});
   }
 
   Future<void> _openAddTransaction({
@@ -68,7 +84,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         builder: (_) => AddTransactionScreen(initialType: type),
       ),
     );
-    setState(() {});
   }
 
   Future<void> _openDetail(Transaction tx) async {
@@ -77,47 +92,43 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         builder: (_) => TransactionDetailScreen(transaction: tx),
       ),
     );
-    setState(() {});
   }
 
   Future<void> _openSettings() async {
     await Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
-    setState(() {});
   }
 
   Future<void> _openAddInstallment() async {
     await Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => const AddInstallmentScreen()));
-    setState(() {});
   }
 
   Future<void> _openInstallmentDetail(InstallmentPlan plan) async {
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => InstallmentDetailScreen(plan: plan)),
     );
-    setState(() {});
   }
 
   Future<void> _openQuickInput() async {
     HapticFeedback.selectionClick();
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const QuickInputScreen()),
-    );
-    setState(() {});
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const QuickInputScreen()));
   }
 
   Future<void> _openAllTransactions() async {
     await Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => const TransactionsScreen()));
-    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
+    _snapshot = _watchSnapshot();
+    _snapshot.applyCurrency();
     return Scaffold(
       backgroundColor: AppColors.background,
       body: IndexedStack(
@@ -131,7 +142,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // ─── HOME TAB ────────────────────────────────────────────
 
   Widget _buildHomeTab() {
-    final txs = _state.transactions;
+    final txs = _snapshot.transactions;
     final recentTxs = txs.take(5).toList();
     return CustomScrollView(
       slivers: [
@@ -284,7 +295,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  _state.currency.code,
+                  _snapshot.currency.code,
                   style: TextStyle(
                     color: AppColors.primaryLight,
                     fontSize: 12,
@@ -296,7 +307,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
           const SizedBox(height: 10),
           Text(
-            Fmt.full(_state.balance),
+            Fmt.full(_snapshot.balance),
             style: TextStyle(
               color: AppColors.textPrimary,
               fontSize: 34,
@@ -310,7 +321,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Expanded(
                 child: _balanceStat(
                   'Pemasukan',
-                  _state.totalIncome,
+                  _snapshot.totalIncome,
                   AppColors.income,
                   Icons.arrow_downward_rounded,
                 ),
@@ -319,7 +330,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Expanded(
                 child: _balanceStat(
                   'Pengeluaran',
-                  _state.totalExpense,
+                  _snapshot.totalExpense,
                   AppColors.expense,
                   Icons.arrow_upward_rounded,
                 ),
@@ -424,7 +435,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildInstallmentSection() {
-    final plans = _state.activeInstallmentPlans;
+    final plans = _snapshot.activeInstallmentPlans;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
       child: Column(
@@ -559,7 +570,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          Fmt.full(_state.totalInstallmentOutstanding),
+                          Fmt.full(_snapshot.totalInstallmentOutstanding),
                           style: const TextStyle(
                             color: AppColors.warning,
                             fontSize: 20,
@@ -704,8 +715,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           );
         },
         onDismissed: (_) async {
-          await _state.deleteTransaction(tx.id);
-          setState(() {});
+          await context.read<TransactionsCubit>().deleteTransaction(tx.id);
         },
         child: TransactionListItem(
           transaction: tx,
@@ -720,9 +730,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // ─── STATS TAB ───────────────────────────────────────────
 
   Widget _buildStatsTab() {
-    final txs = _state.transactions;
-    final income = _state.totalIncome;
-    final expense = _state.totalExpense;
+    final txs = _snapshot.transactions;
+    final income = _snapshot.totalIncome;
+    final expense = _snapshot.totalExpense;
     final savings = income - expense;
     final savingsRate = income > 0 ? savings / income * 100 : 0.0;
 
@@ -732,8 +742,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     for (final tx in txs.where((t) => t.type == TransactionType.expense)) {
       final key = tx.customCategoryId ?? tx.category.name;
       catTotals[key] = (catTotals[key] ?? 0) + tx.amount;
-      catColors[key] = _state.categoryColor(tx);
-      catIcons[key] = _state.categoryIcon(tx);
+      catColors[key] = _snapshot.categoryColor(tx);
+      catIcons[key] = _snapshot.categoryIcon(tx);
     }
     final sorted = catTotals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
@@ -864,7 +874,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
               String label;
               if (e.key.contains('-')) {
-                final c = _state.customCategories
+                final c = _snapshot.customCategories
                     .where((c) => c.id == e.key)
                     .firstOrNull;
                 label = c?.name ?? 'Kustom';
@@ -987,9 +997,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildInstallmentCard(InstallmentPlan plan) {
-    final remaining = _state.installmentRemaining(plan.id);
-    final paid = _state.installmentPaidAmount(plan.id);
-    final progress = _state.installmentProgress(plan.id);
+    final remaining = _snapshot.installmentRemaining(plan.id);
+    final paid = _snapshot.installmentPaidAmount(plan.id);
+    final progress = _snapshot.installmentProgress(plan.id);
     return GestureDetector(
       onTap: () => _openInstallmentDetail(plan),
       child: Container(

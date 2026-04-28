@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:sentra_app/core/services/app_state.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:sentra_app/core/services/finance_insights_service.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
+import 'package:sentra_app/features/categories/cubit/categories_cubit.dart';
 
 class TransactionListItem extends StatelessWidget {
+  static const FinanceInsightsService _insights = FinanceInsightsService();
+
   final Transaction transaction;
   final String dateLabel;
   final VoidCallback onTap;
@@ -19,10 +23,12 @@ class TransactionListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final state = AppState.instance;
-    final color = state.categoryColor(transaction);
-    final icon = state.categoryIcon(transaction);
-    final label = state.categoryLabel(transaction);
+    final categories = context.select<CategoriesCubit, List<CustomCategory>>(
+      (cubit) => cubit.state.customCategories,
+    );
+    final color = _insights.categoryColor(transaction, categories);
+    final icon = _insights.categoryIcon(transaction, categories);
+    final label = _insights.categoryLabel(transaction, categories);
     final isExpense = transaction.type == TransactionType.expense;
 
     return GestureDetector(

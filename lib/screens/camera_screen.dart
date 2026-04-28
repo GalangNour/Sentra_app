@@ -35,14 +35,21 @@ class _CameraScreenState extends State<CameraScreen>
   void initState() {
     super.initState();
     _scanLineCtrl = AnimationController(
-        vsync: this, duration: const Duration(seconds: 2));
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    );
     _pulseCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1000))
-      ..repeat(reverse: true);
-    _scanLineAnim = Tween<double>(begin: 0.0, end: 1.0)
-        .animate(CurvedAnimation(parent: _scanLineCtrl, curve: Curves.linear));
-    _pulseAnim = Tween<double>(begin: 0.95, end: 1.05).animate(
-        CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+    _scanLineAnim = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _scanLineCtrl, curve: Curves.linear));
+    _pulseAnim = Tween<double>(
+      begin: 0.95,
+      end: 1.05,
+    ).animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
     _initCamera();
   }
 
@@ -66,12 +73,22 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> _startCamera(CameraDescription camera) async {
-    final ctrl = CameraController(camera, ResolutionPreset.high,
-        enableAudio: false, imageFormatGroup: ImageFormatGroup.jpeg);
+    final ctrl = CameraController(
+      camera,
+      ResolutionPreset.high,
+      enableAudio: false,
+      imageFormatGroup: ImageFormatGroup.jpeg,
+    );
     try {
       await ctrl.initialize();
-      if (!mounted) { ctrl.dispose(); return; }
-      setState(() { _controller = ctrl; _isInitialized = true; });
+      if (!mounted) {
+        ctrl.dispose();
+        return;
+      }
+      setState(() {
+        _controller = ctrl;
+        _isInitialized = true;
+      });
     } catch (e) {
       debugPrint('Camera start: $e');
       ctrl.dispose();
@@ -89,8 +106,7 @@ class _CameraScreenState extends State<CameraScreen>
   Future<void> _toggleFlash() async {
     if (_controller == null || !_isInitialized) return;
     setState(() => _flashOn = !_flashOn);
-    await _controller!.setFlashMode(
-        _flashOn ? FlashMode.torch : FlashMode.off);
+    await _controller!.setFlashMode(_flashOn ? FlashMode.torch : FlashMode.off);
   }
 
   Future<void> _capture() async {
@@ -101,11 +117,13 @@ class _CameraScreenState extends State<CameraScreen>
       final XFile file = await _controller!.takePicture();
       if (!mounted) return;
       setState(() => _isProcessing = false);
-      await Navigator.of(context).push(PageRouteBuilder(
-        pageBuilder: (_, a, __) => ScanRegionScreen(imagePath: file.path),
-        transitionsBuilder: (_, a, __, child) =>
-            FadeTransition(opacity: a, child: child),
-      ));
+      await Navigator.of(context).push(
+        PageRouteBuilder(
+          pageBuilder: (_, a, __) => ScanRegionScreen(imagePath: file.path),
+          transitionsBuilder: (_, a, __, child) =>
+              FadeTransition(opacity: a, child: child),
+        ),
+      );
     } on CameraException catch (e) {
       if (mounted) _showError('Gagal mengambil foto: ${e.description}');
     } catch (e) {
@@ -117,13 +135,15 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: AppColors.expense,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      margin: const EdgeInsets.all(16),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: AppColors.expense,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
   }
 
   @override
@@ -156,8 +176,10 @@ class _CameraScreenState extends State<CameraScreen>
 
   Widget _buildPreview() {
     if (!_isInitialized || _controller == null) {
-      return Container(color: Colors.black,
-          child: CustomPaint(painter: _GridPainter()));
+      return Container(
+        color: Colors.black,
+        child: CustomPaint(painter: _GridPainter()),
+      );
     }
     return ClipRect(
       child: OverflowBox(
@@ -166,7 +188,8 @@ class _CameraScreenState extends State<CameraScreen>
           fit: BoxFit.cover,
           child: SizedBox(
             width: MediaQuery.of(context).size.width,
-            height: MediaQuery.of(context).size.width *
+            height:
+                MediaQuery.of(context).size.width *
                 _controller!.value.aspectRatio,
             child: CameraPreview(_controller!),
           ),
@@ -183,8 +206,10 @@ class _CameraScreenState extends State<CameraScreen>
             padding: const EdgeInsets.all(12),
             child: Align(
               alignment: Alignment.topLeft,
-              child: _iconBtn(Icons.arrow_back_ios_new_rounded,
-                  onTap: () => Navigator.of(context).pop()),
+              child: _iconBtn(
+                Icons.arrow_back_ios_new_rounded,
+                onTap: () => Navigator.of(context).pop(),
+              ),
             ),
           ),
           const Spacer(),
@@ -199,28 +224,37 @@ class _CameraScreenState extends State<CameraScreen>
             child: Column(
               children: [
                 Container(
-                  width: 80, height: 80,
+                  width: 80,
+                  height: 80,
                   decoration: BoxDecoration(
                     color: AppColors.expense.withAlpha(26),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.no_photography_rounded,
-                      color: AppColors.expense, size: 36),
+                  child: const Icon(
+                    Icons.no_photography_rounded,
+                    color: AppColors.expense,
+                    size: 36,
+                  ),
                 ),
                 const SizedBox(height: 20),
-                Text('Izin Kamera Diperlukan',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700)),
+                Text(
+                  'Izin Kamera Diperlukan',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 const SizedBox(height: 10),
                 Text(
                   'Sentra membutuhkan akses kamera untuk scan struk.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 14, height: 1.5),
+                    color: AppColors.textSecondary,
+                    fontSize: 14,
+                    height: 1.5,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 GestureDetector(
@@ -233,20 +267,24 @@ class _CameraScreenState extends State<CameraScreen>
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Center(
-                      child: Text('Buka Pengaturan',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15)),
+                      child: Text(
+                        'Buka Pengaturan',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(height: 12),
                 GestureDetector(
                   onTap: () => Navigator.of(context).pop(),
-                  child: Text('Kembali',
-                      style: TextStyle(
-                          color: AppColors.textMuted, fontSize: 14)),
+                  child: Text(
+                    'Kembali',
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 14),
+                  ),
                 ),
               ],
             ),
@@ -263,32 +301,40 @@ class _CameraScreenState extends State<CameraScreen>
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 20, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _iconBtn(Icons.arrow_back_ios_new_rounded,
-                    onTap: () => Navigator.of(context).pop()),
+                _iconBtn(
+                  Icons.arrow_back_ios_new_rounded,
+                  onTap: () => Navigator.of(context).pop(),
+                ),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 8),
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black54,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: Colors.white12),
                   ),
-                  child: const Text('Scan Struk',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600)),
+                  child: const Text(
+                    'Scan Struk',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
                 Row(
                   children: [
                     if (_cameras.length > 1) ...[
-                      _iconBtn(Icons.flip_camera_android_rounded,
-                          onTap: _switchCamera),
+                      _iconBtn(
+                        Icons.flip_camera_android_rounded,
+                        onTap: _switchCamera,
+                      ),
                       const SizedBox(width: 8),
                     ],
                     _iconBtn(
@@ -308,23 +354,28 @@ class _CameraScreenState extends State<CameraScreen>
     );
   }
 
-  Widget _iconBtn(IconData icon,
-      {required VoidCallback onTap, bool active = false}) {
+  Widget _iconBtn(
+    IconData icon, {
+    required VoidCallback onTap,
+    bool active = false,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 44, height: 44,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
           color: active ? AppColors.primary.withAlpha(76) : Colors.black54,
           shape: BoxShape.circle,
           border: Border.all(
-              color: active
-                  ? AppColors.primary.withAlpha(153)
-                  : Colors.white24),
+            color: active ? AppColors.primary.withAlpha(153) : Colors.white24,
+          ),
         ),
-        child: Icon(icon,
-            color: active ? AppColors.primaryLight : Colors.white,
-            size: 20),
+        child: Icon(
+          icon,
+          color: active ? AppColors.primaryLight : Colors.white,
+          size: 20,
+        ),
       ),
     );
   }
@@ -334,59 +385,70 @@ class _CameraScreenState extends State<CameraScreen>
     final h = w * 1.35;
     return Center(
       child: SizedBox(
-        width: w, height: h,
+        width: w,
+        height: h,
         child: Stack(
           children: [
             CustomPaint(
               size: Size(w, h),
               painter: _FramePainter(
-                  color: _isProcessing
-                      ? AppColors.income
-                      : AppColors.primary),
+                color: _isProcessing ? AppColors.income : AppColors.primary,
+              ),
             ),
             Positioned(
-              bottom: -52, left: 0, right: 0,
+              bottom: -52,
+              left: 0,
+              right: 0,
               child: _isProcessing
                   ? Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         SizedBox(
-                          width: 14, height: 14,
+                          width: 14,
+                          height: 14,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.income),
+                            strokeWidth: 2,
+                            color: AppColors.income,
+                          ),
                         ),
                         const SizedBox(width: 8),
-                        Text('Memproses struk...',
-                            style: TextStyle(
-                                color: AppColors.income,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600)),
+                        Text(
+                          'Memproses struk...',
+                          style: TextStyle(
+                            color: AppColors.income,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ],
                     )
                   : !_isInitialized
-                      ? Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SizedBox(
-                              width: 14, height: 14,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.textMuted),
-                            ),
-                            const SizedBox(width: 8),
-                            Text('Memuat kamera...',
-                                style: TextStyle(
-                                    color: AppColors.textMuted,
-                                    fontSize: 13)),
-                          ],
-                        )
-                      : const Text(
-                          'Arahkan kamera ke struk belanja',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                              color: Colors.white60, fontSize: 13),
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.textMuted,
+                          ),
                         ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Memuat kamera...',
+                          style: TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    )
+                  : const Text(
+                      'Arahkan kamera ke struk belanja',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white60, fontSize: 13),
+                    ),
             ),
           ],
         ),
@@ -400,28 +462,34 @@ class _CameraScreenState extends State<CameraScreen>
     return Center(
       child: ClipRect(
         child: SizedBox(
-          width: w, height: h,
+          width: w,
+          height: h,
           child: AnimatedBuilder(
             animation: _scanLineAnim,
             builder: (_, __) => Stack(
               children: [
                 Positioned(
                   top: _scanLineAnim.value * h,
-                  left: 0, right: 0,
+                  left: 0,
+                  right: 0,
                   child: Container(
                     height: 2,
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(colors: [
-                        Colors.transparent,
-                        AppColors.income.withAlpha(204),
-                        AppColors.income,
-                        AppColors.income.withAlpha(204),
-                        Colors.transparent,
-                      ]),
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.transparent,
+                          AppColors.income.withAlpha(204),
+                          AppColors.income,
+                          AppColors.income.withAlpha(204),
+                          Colors.transparent,
+                        ],
+                      ),
                       boxShadow: [
                         BoxShadow(
-                            color: AppColors.income.withAlpha(153),
-                            blurRadius: 12, spreadRadius: 3)
+                          color: AppColors.income.withAlpha(153),
+                          blurRadius: 12,
+                          spreadRadius: 3,
+                        ),
                       ],
                     ),
                   ),
@@ -437,7 +505,9 @@ class _CameraScreenState extends State<CameraScreen>
   Widget _buildModeSelector() {
     final bottom = MediaQuery.of(context).padding.bottom;
     return Positioned(
-      bottom: bottom + 110, left: 0, right: 0,
+      bottom: bottom + 110,
+      left: 0,
+      right: 0,
       child: SizedBox(
         height: 36,
         child: ListView.builder(
@@ -455,23 +525,26 @@ class _CameraScreenState extends State<CameraScreen>
                 duration: const Duration(milliseconds: 200),
                 margin: const EdgeInsets.only(right: 10),
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 8),
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: sel
                       ? AppColors.primary.withAlpha(230)
                       : Colors.black54,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                      color:
-                          sel ? AppColors.primary : Colors.white24),
+                    color: sel ? AppColors.primary : Colors.white24,
+                  ),
                 ),
-                child: Text(_modes[i],
-                    style: TextStyle(
-                        color: sel ? Colors.white : Colors.white60,
-                        fontSize: 13,
-                        fontWeight: sel
-                            ? FontWeight.w600
-                            : FontWeight.w400)),
+                child: Text(
+                  _modes[i],
+                  style: TextStyle(
+                    color: sel ? Colors.white : Colors.white60,
+                    fontSize: 13,
+                    fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
               ),
             );
           },
@@ -483,10 +556,16 @@ class _CameraScreenState extends State<CameraScreen>
   Widget _buildBottomControls() {
     final bottom = MediaQuery.of(context).padding.bottom;
     return Positioned(
-      bottom: 0, left: 0, right: 0,
+      bottom: 0,
+      left: 0,
+      right: 0,
       child: Container(
         padding: EdgeInsets.only(
-            left: 48, right: 48, top: 20, bottom: bottom + 16),
+          left: 48,
+          right: 48,
+          top: 20,
+          bottom: bottom + 16,
+        ),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -505,7 +584,8 @@ class _CameraScreenState extends State<CameraScreen>
                 child: Transform.scale(
                   scale: _isProcessing ? _pulseAnim.value : 1.0,
                   child: Container(
-                    width: 76, height: 76,
+                    width: 76,
+                    height: 76,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: _isProcessing
@@ -513,11 +593,13 @@ class _CameraScreenState extends State<CameraScreen>
                           : AppColors.primaryGradient,
                       boxShadow: [
                         BoxShadow(
-                          color: (_isProcessing
-                                  ? AppColors.income
-                                  : AppColors.primary)
-                              .withAlpha(128),
-                          blurRadius: 24, spreadRadius: 4,
+                          color:
+                              (_isProcessing
+                                      ? AppColors.income
+                                      : AppColors.primary)
+                                  .withAlpha(128),
+                          blurRadius: 24,
+                          spreadRadius: 4,
                         ),
                       ],
                     ),
@@ -525,22 +607,24 @@ class _CameraScreenState extends State<CameraScreen>
                       margin: const EdgeInsets.all(3),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border:
-                            Border.all(color: Colors.white30, width: 2),
+                        border: Border.all(color: Colors.white30, width: 2),
                       ),
                       child: Icon(
                         _isProcessing
                             ? Icons.hourglass_top_rounded
                             : Icons.camera_alt_rounded,
-                        color: Colors.white, size: 30,
+                        color: Colors.white,
+                        size: 30,
                       ),
                     ),
                   ),
                 ),
               ),
             ),
-            _sideBtn(Icons.edit_rounded,
-                onTap: () => Navigator.of(context).pop()),
+            _sideBtn(
+              Icons.edit_rounded,
+              onTap: () => Navigator.of(context).pop(),
+            ),
           ],
         ),
       ),
@@ -551,7 +635,8 @@ class _CameraScreenState extends State<CameraScreen>
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 50, height: 50,
+        width: 50,
+        height: 50,
         decoration: BoxDecoration(
           color: Colors.white12,
           borderRadius: BorderRadius.circular(14),
@@ -578,20 +663,31 @@ class _FramePainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
     const len = 28.0, r = 10.0;
     final paths = [
-      Path()..moveTo(0, len)..lineTo(0, r)
-            ..quadraticBezierTo(0, 0, r, 0)..lineTo(len, 0),
-      Path()..moveTo(size.width - len, 0)
-            ..lineTo(size.width - r, 0)
-            ..quadraticBezierTo(size.width, 0, size.width, r)
-            ..lineTo(size.width, len),
-      Path()..moveTo(0, size.height - len)
-            ..lineTo(0, size.height - r)
-            ..quadraticBezierTo(0, size.height, r, size.height)
-            ..lineTo(len, size.height),
-      Path()..moveTo(size.width - len, size.height)
-            ..lineTo(size.width - r, size.height)
-            ..quadraticBezierTo(size.width, size.height, size.width, size.height - r)
-            ..lineTo(size.width, size.height - len),
+      Path()
+        ..moveTo(0, len)
+        ..lineTo(0, r)
+        ..quadraticBezierTo(0, 0, r, 0)
+        ..lineTo(len, 0),
+      Path()
+        ..moveTo(size.width - len, 0)
+        ..lineTo(size.width - r, 0)
+        ..quadraticBezierTo(size.width, 0, size.width, r)
+        ..lineTo(size.width, len),
+      Path()
+        ..moveTo(0, size.height - len)
+        ..lineTo(0, size.height - r)
+        ..quadraticBezierTo(0, size.height, r, size.height)
+        ..lineTo(len, size.height),
+      Path()
+        ..moveTo(size.width - len, size.height)
+        ..lineTo(size.width - r, size.height)
+        ..quadraticBezierTo(
+          size.width,
+          size.height,
+          size.width,
+          size.height - r,
+        )
+        ..lineTo(size.width, size.height - len),
     ];
     final glow = Paint()
       ..strokeWidth = 10
@@ -611,7 +707,9 @@ class _FramePainter extends CustomPainter {
 class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final p = Paint()..color = Colors.white.withAlpha(8)..strokeWidth = 0.5;
+    final p = Paint()
+      ..color = Colors.white.withAlpha(8)
+      ..strokeWidth = 0.5;
     for (double x = 0; x < size.width; x += 40) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), p);
     }

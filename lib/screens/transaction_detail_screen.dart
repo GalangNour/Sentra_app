@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:sentra_app/core/services/app_state.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:sentra_app/core/services/finance_snapshot.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
+import 'package:sentra_app/features/categories/cubit/categories_cubit.dart';
+import 'package:sentra_app/features/installments/cubit/installments_cubit.dart';
+import 'package:sentra_app/features/settings/cubit/settings_cubit.dart';
+import 'package:sentra_app/features/transactions/cubit/transactions_cubit.dart';
 import 'package:sentra_app/screens/add_transaction_screen.dart';
 import 'package:sentra_app/screens/installment_detail_screen.dart';
 
@@ -18,11 +23,23 @@ class TransactionDetailScreen extends StatefulWidget {
 
 class _TransactionDetailScreenState extends State<TransactionDetailScreen>
     with SingleTickerProviderStateMixin {
-  final _state = AppState.instance;
   late Transaction _tx;
   late AnimationController _animCtrl;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
+  late FinanceSnapshot _snapshot;
+
+  FinanceSnapshot _watchSnapshot() {
+    return FinanceSnapshot(
+      transactions: context.watch<TransactionsCubit>().state.transactions,
+      customCategories: context.watch<CategoriesCubit>().state.customCategories,
+      installmentPlans: context
+          .watch<InstallmentsCubit>()
+          .state
+          .installmentPlans,
+      currency: context.watch<SettingsCubit>().state.currency,
+    );
+  }
 
   @override
   void initState() {
@@ -59,10 +76,11 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
       ),
     );
     if (result == true && mounted) {
-      final updated = _state.transactions.firstWhere(
-        (t) => t.id == _tx.id,
-        orElse: () => _tx,
-      );
+      final updated = context
+          .read<TransactionsCubit>()
+          .state
+          .transactions
+          .firstWhere((t) => t.id == _tx.id, orElse: () => _tx);
       setState(() => _tx = updated);
     }
   }
@@ -158,7 +176,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
     );
 
     if (confirm == true && mounted) {
-      await _state.deleteTransaction(_tx.id);
+      await context.read<TransactionsCubit>().deleteTransaction(_tx.id);
       HapticFeedback.mediumImpact();
       if (mounted) Navigator.of(context).pop(true);
     }
@@ -173,9 +191,15 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
 
   @override
   Widget build(BuildContext context) {
-    final catColor = _state.categoryColor(_tx);
-    final catIcon = _state.categoryIcon(_tx);
-    final catLabel = _state.categoryLabel(_tx);
+    _snapshot = _watchSnapshot();
+    final latest = _snapshot.transactions.firstWhere(
+      (transaction) => transaction.id == _tx.id,
+      orElse: () => _tx,
+    );
+    _tx = latest;
+    final catColor = _snapshot.categoryColor(_tx);
+    final catIcon = _snapshot.categoryIcon(_tx);
+    final catLabel = _snapshot.categoryLabel(_tx);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -360,7 +384,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
   }
 
   Widget _buildInfoCard(Color catColor, IconData catIcon, String catLabel) {
-    final installment = _state.installmentById(_tx.installmentPlanId);
+    final installment = _snapshot.installmentById(_tx.installmentPlanId);
     return _DetailCard(
       children: [
         _DetailRow(

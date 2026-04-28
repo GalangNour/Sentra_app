@@ -173,7 +173,8 @@ class AppColors {
   static Color get background => ThemeConfig.current.preset.background;
   static Color get surface => ThemeConfig.current.preset.surface;
   static Color get surfaceCard => ThemeConfig.current.preset.surfaceCard;
-  static Color get surfaceElevated => ThemeConfig.current.preset.surfaceElevated;
+  static Color get surfaceElevated =>
+      ThemeConfig.current.preset.surfaceElevated;
   static Color get surfaceBorder => ThemeConfig.current.preset.surfaceBorder;
 
   // Text — change with preset
@@ -183,10 +184,10 @@ class AppColors {
 
   // Gradients
   static LinearGradient get primaryGradient => LinearGradient(
-        colors: [AppColors.primary, AppColors.primaryDark],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
+    colors: [AppColors.primary, AppColors.primaryDark],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 
   static const LinearGradient incomeGradient = LinearGradient(
     colors: [Color(0xFF00C896), Color(0xFF00A878)],
@@ -201,19 +202,20 @@ class AppColors {
   );
 
   static LinearGradient get balanceGradient => LinearGradient(
-        colors: [
-          ThemeConfig.current.preset.surfaceCard,
-          ThemeConfig.current.preset.surfaceElevated,
-        ],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
+    colors: [
+      ThemeConfig.current.preset.surfaceCard,
+      ThemeConfig.current.preset.surfaceElevated,
+    ],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 }
 
 // ─── AppTheme ─────────────────────────────────────────────────
 
 class AppTheme {
-  static ThemeData get current {
+  static ThemeData build({required ThemePreset preset, required Color accent}) {
+    ThemeConfig.apply(preset, accent);
     return ThemeData(
       brightness: Brightness.dark,
       scaffoldBackgroundColor: AppColors.background,
@@ -226,25 +228,30 @@ class AppTheme {
       textTheme: GoogleFonts.interTextTheme(
         TextTheme(
           headlineLarge: TextStyle(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w800,
-              fontSize: 28),
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w800,
+            fontSize: 28,
+          ),
           headlineMedium: TextStyle(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w700,
-              fontSize: 22),
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w700,
+            fontSize: 22,
+          ),
           headlineSmall: TextStyle(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w600,
-              fontSize: 18),
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+          ),
           titleLarge: TextStyle(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w600,
-              fontSize: 16),
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+          ),
           titleMedium: TextStyle(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
-              fontSize: 14),
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+          ),
           bodyLarge: TextStyle(color: AppColors.textPrimary, fontSize: 16),
           bodyMedium: TextStyle(color: AppColors.textSecondary, fontSize: 14),
           bodySmall: TextStyle(color: AppColors.textMuted, fontSize: 12),
@@ -264,8 +271,7 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: AppColors.surfaceCard,
         elevation: 0,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -288,6 +294,11 @@ class AppTheme {
       useMaterial3: true,
     );
   }
+
+  static ThemeData get current => build(
+    preset: ThemeConfig.current.preset,
+    accent: ThemeConfig.current.accent,
+  );
 
   // alias kept for any remaining references
   static ThemeData get darkTheme => current;

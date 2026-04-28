@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:sentra_app/core/services/app_state.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:sentra_app/core/models/currency_info.dart';
+import 'package:sentra_app/core/models/custom_category.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
+import 'package:sentra_app/features/categories/cubit/categories_cubit.dart';
+import 'package:sentra_app/features/settings/cubit/settings_cubit.dart';
+import 'package:sentra_app/features/transactions/cubit/transactions_cubit.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -11,17 +16,34 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final _state = AppState.instance;
+  late CurrencyInfo _currency;
+  late List<CustomCategory> _customCategories;
+  late ThemePreset _themePreset;
+  late Color _accent;
+  late SettingsCubit _settingsCubit;
+  late CategoriesCubit _categoriesCubit;
+  late TransactionsCubit _transactionsCubit;
 
   // ─── Build ─────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
+    final settingsState = context.watch<SettingsCubit>().state;
+    final categoriesState = context.watch<CategoriesCubit>().state;
+    _settingsCubit = context.read<SettingsCubit>();
+    _categoriesCubit = context.read<CategoriesCubit>();
+    _transactionsCubit = context.read<TransactionsCubit>();
+    _currency = settingsState.currency;
+    _themePreset = settingsState.themePreset;
+    _accent = settingsState.accent;
+    _customCategories = categoriesState.customCategories;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('Pengaturan',
-            style: TextStyle(color: AppColors.textPrimary)),
+        title: Text(
+          'Pengaturan',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
         leading: GestureDetector(
           onTap: () => Navigator.of(context).pop(true),
           child: Container(
@@ -30,8 +52,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: AppColors.surfaceCard,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(Icons.arrow_back_ios_new_rounded,
-                size: 18, color: AppColors.textPrimary),
+            child: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              size: 18,
+              color: AppColors.textPrimary,
+            ),
           ),
         ),
       ),
@@ -57,13 +82,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _sectionLabel(String label) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Text(label,
-            style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.w700)),
-      );
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Text(
+      label,
+      style: TextStyle(
+        color: AppColors.textPrimary,
+        fontSize: 16,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+  );
 
   // ─── Currency ───────────────────────────────────────────
 
@@ -71,10 +99,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return _tile(
       icon: Icons.monetization_on_rounded,
       iconColor: AppColors.income,
-      title: _state.currency.name,
-      subtitle: '${_state.currency.symbol} · ${_state.currency.code}',
-      trailing:
-          Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+      title: _currency.name,
+      subtitle: '${_currency.symbol} · ${_currency.code}',
+      trailing: Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
       onTap: _showCurrencyPicker,
     );
   }
@@ -92,8 +119,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         builder: (_, scrollCtrl) => Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Column(
             children: [
@@ -134,10 +160,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   itemBuilder: (_, i) {
                     final c = CurrencyInfo.all[i];
-                    final sel = c.code == _state.currency.code;
+                    final sel = c.code == _currency.code;
                     return ListTile(
-                      tileColor:
-                          sel ? AppColors.primary.withAlpha(18) : null,
+                      tileColor: sel ? AppColors.primary.withAlpha(18) : null,
                       leading: Container(
                         width: 44,
                         height: 44,
@@ -165,8 +190,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         style: TextStyle(
                           color: AppColors.textPrimary,
                           fontSize: 14,
-                          fontWeight:
-                              sel ? FontWeight.w600 : FontWeight.w400,
+                          fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
                         ),
                       ),
                       subtitle: Text(
@@ -177,12 +201,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                       trailing: sel
-                          ? Icon(Icons.check_circle_rounded,
-                              color: AppColors.primary)
+                          ? Icon(
+                              Icons.check_circle_rounded,
+                              color: AppColors.primary,
+                            )
                           : null,
                       onTap: () async {
-                        await _state.setCurrency(c);
-                        setState(() {});
+                        await _settingsCubit.setCurrency(c);
                         if (mounted) Navigator.of(context).pop();
                       },
                     );
@@ -199,7 +224,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // ─── Theme Section ──────────────────────────────────────
 
   Widget _buildThemeSection() {
-    final current = ThemeConfig.current;
+    final current = ThemeConfig(preset: _themePreset, accent: _accent);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -216,9 +241,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               return GestureDetector(
                 onTap: () async {
                   HapticFeedback.selectionClick();
-                  // Keep current accent if it looks good, else use preset default
-                  await _state.setTheme(preset, preset.defaultAccent);
-                  setState(() {});
+                  await _settingsCubit.setTheme(preset, preset.defaultAccent);
                 },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
@@ -228,9 +251,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     color: preset.surfaceCard,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: isSelected
-                          ? current.accent
-                          : preset.surfaceBorder,
+                      color: isSelected ? current.accent : preset.surfaceBorder,
                       width: isSelected ? 2 : 1,
                     ),
                     boxShadow: isSelected
@@ -239,7 +260,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               color: current.accent.withAlpha(60),
                               blurRadius: 12,
                               spreadRadius: 1,
-                            )
+                            ),
                           ]
                         : null,
                   ),
@@ -256,13 +277,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               borderRadius: BorderRadius.circular(7),
                             ),
                             child: isSelected
-                                ? const Icon(Icons.check_rounded,
-                                    color: Colors.white, size: 14)
+                                ? const Icon(
+                                    Icons.check_rounded,
+                                    color: Colors.white,
+                                    size: 14,
+                                  )
                                 : null,
                           ),
                           const Spacer(),
-                          Icon(preset.icon,
-                              size: 14, color: preset.textMuted),
+                          Icon(preset.icon, size: 14, color: preset.textMuted),
                         ],
                       ),
                       const Spacer(),
@@ -327,8 +350,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   return GestureDetector(
                     onTap: () async {
                       HapticFeedback.selectionClick();
-                      await _state.setTheme(current.preset, ac.color);
-                      setState(() {});
+                      await _settingsCubit.setTheme(current.preset, ac.color);
                     },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
@@ -339,21 +361,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         shape: BoxShape.circle,
                         border: isSelected
                             ? Border.all(color: Colors.white, width: 2.5)
-                            : Border.all(
-                                color: Colors.transparent, width: 2.5),
+                            : Border.all(color: Colors.transparent, width: 2.5),
                         boxShadow: isSelected
                             ? [
                                 BoxShadow(
                                   color: ac.color.withAlpha(120),
                                   blurRadius: 10,
                                   spreadRadius: 2,
-                                )
+                                ),
                               ]
                             : null,
                       ),
                       child: isSelected
-                          ? const Icon(Icons.check_rounded,
-                              color: Colors.white, size: 18)
+                          ? const Icon(
+                              Icons.check_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            )
                           : null,
                     ),
                   );
@@ -362,8 +386,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 10),
               Text(
                 'Aksen aktif: ${_accentName(current.accent)}',
-                style: TextStyle(
-                    color: AppColors.textMuted, fontSize: 11),
+                style: TextStyle(color: AppColors.textMuted, fontSize: 11),
               ),
             ],
           ),
@@ -384,10 +407,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _colorDot(Color color) => Container(
-        width: 8,
-        height: 8,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      );
+    width: 8,
+    height: 8,
+    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+  );
 
   String _accentName(Color accent) {
     final match = AccentColor.all
@@ -399,7 +422,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // ─── Custom Categories ──────────────────────────────────
 
   Widget _buildCustomCategoryList() {
-    if (_state.customCategories.isEmpty) {
+    if (_customCategories.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -408,9 +431,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           border: Border.all(color: AppColors.surfaceBorder),
         ),
         child: Center(
-          child: Text('Belum ada kategori kustom',
-              style:
-                  TextStyle(color: AppColors.textMuted, fontSize: 13)),
+          child: Text(
+            'Belum ada kategori kustom',
+            style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+          ),
         ),
       );
     }
@@ -421,10 +445,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         border: Border.all(color: AppColors.surfaceBorder),
       ),
       child: Column(
-        children: _state.customCategories.asMap().entries.map((e) {
+        children: _customCategories.asMap().entries.map((e) {
           final i = e.key;
           final cat = e.value;
-          final isLast = i == _state.customCategories.length - 1;
+          final isLast = i == _customCategories.length - 1;
           return Column(
             children: [
               ListTile(
@@ -438,22 +462,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   child: Icon(cat.icon, color: cat.color, size: 18),
                 ),
-                title: Text(cat.name,
-                    style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500)),
+                title: Text(
+                  cat.name,
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
                 trailing: GestureDetector(
                   onTap: () => _deleteCategory(cat.id),
-                  child: Icon(Icons.delete_outline_rounded,
-                      color: AppColors.expense, size: 20),
+                  child: Icon(
+                    Icons.delete_outline_rounded,
+                    color: AppColors.expense,
+                    size: 20,
+                  ),
                 ),
               ),
               if (!isLast)
-                Divider(
-                    color: AppColors.surfaceBorder,
-                    height: 1,
-                    indent: 16),
+                Divider(color: AppColors.surfaceBorder, height: 1, indent: 16),
             ],
           );
         }).toList(),
@@ -472,19 +499,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             color: AppColors.primary.withAlpha(20),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-                color: AppColors.primary.withAlpha(76),
-                style: BorderStyle.solid),
+              color: AppColors.primary.withAlpha(76),
+              style: BorderStyle.solid,
+            ),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.add_rounded, color: AppColors.primary, size: 20),
               const SizedBox(width: 6),
-              Text('Tambah Kategori',
-                  style: TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600)),
+              Text(
+                'Tambah Kategori',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
         ),
@@ -497,25 +528,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceCard,
-        title: Text('Hapus Kategori?',
-            style: TextStyle(color: AppColors.textPrimary)),
+        title: Text(
+          'Hapus Kategori?',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
         content: Text(
-            'Transaksi yang menggunakan kategori ini akan menjadi "Lainnya".',
-            style: TextStyle(color: AppColors.textSecondary)),
+          'Transaksi yang menggunakan kategori ini akan menjadi "Lainnya".',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Batal')),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text('Hapus',
-                  style: TextStyle(color: AppColors.expense))),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Hapus', style: TextStyle(color: AppColors.expense)),
+          ),
         ],
       ),
     );
     if (confirm == true) {
-      await _state.deleteCustomCategory(id);
-      setState(() {});
+      await _categoriesCubit.deleteCustomCategory(id);
     }
   }
 
@@ -529,10 +563,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setD) => AlertDialog(
           backgroundColor: AppColors.surfaceCard,
-          title: Text('Tambah Kategori',
-              style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w700)),
+          title: Text(
+            'Tambah Kategori',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -552,9 +589,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text('Ikon',
-                    style: TextStyle(
-                        color: AppColors.textSecondary, fontSize: 13)),
+                Text(
+                  'Ikon',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -572,23 +613,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               : AppColors.surfaceElevated,
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                              color: sel
-                                  ? selectedColor
-                                  : Colors.transparent,
-                              width: 1.5),
+                            color: sel ? selectedColor : Colors.transparent,
+                            width: 1.5,
+                          ),
                         ),
-                        child: Icon(icon,
-                            color:
-                                sel ? selectedColor : AppColors.textMuted,
-                            size: 20),
+                        child: Icon(
+                          icon,
+                          color: sel ? selectedColor : AppColors.textMuted,
+                          size: 20,
+                        ),
                       ),
                     );
                   }).toList(),
                 ),
                 const SizedBox(height: 16),
-                Text('Warna',
-                    style: TextStyle(
-                        color: AppColors.textSecondary, fontSize: 13)),
+                Text(
+                  'Warna',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -609,8 +654,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           boxShadow: sel
                               ? [
                                   BoxShadow(
-                                      color: color.withAlpha(102),
-                                      blurRadius: 8)
+                                    color: color.withAlpha(102),
+                                    blurRadius: 8,
+                                  ),
                                 ]
                               : null,
                         ),
@@ -623,22 +669,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text('Batal',
-                    style: TextStyle(color: AppColors.textMuted))),
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(
+                'Batal',
+                style: TextStyle(color: AppColors.textMuted),
+              ),
+            ),
             TextButton(
               onPressed: () async {
                 if (nameCtrl.text.trim().isEmpty) return;
-                await _state.addCustomCategory(
+                await _categoriesCubit.addCustomCategory(
                   name: nameCtrl.text.trim(),
                   icon: selectedIcon,
                   color: selectedColor,
                 );
-                setState(() {});
-                if (mounted) Navigator.pop(ctx);
+                if (!ctx.mounted) return;
+                Navigator.pop(ctx);
               },
-              child: Text('Simpan',
-                  style: TextStyle(color: AppColors.primary)),
+              child: Text('Simpan', style: TextStyle(color: AppColors.primary)),
             ),
           ],
         ),
@@ -659,25 +707,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
           context: context,
           builder: (_) => AlertDialog(
             backgroundColor: AppColors.surfaceCard,
-            title: Text('Hapus Semua Data?',
-                style: TextStyle(color: AppColors.textPrimary)),
+            title: Text(
+              'Hapus Semua Data?',
+              style: TextStyle(color: AppColors.textPrimary),
+            ),
             content: Text(
-                'Seluruh riwayat transaksi akan dihapus permanen.',
-                style: TextStyle(color: AppColors.textSecondary)),
+              'Seluruh riwayat transaksi akan dihapus permanen.',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
             actions: [
               TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Batal')),
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Batal'),
+              ),
               TextButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: Text('Hapus Semua',
-                      style: TextStyle(color: AppColors.expense))),
+                onPressed: () => Navigator.pop(context, true),
+                child: Text(
+                  'Hapus Semua',
+                  style: TextStyle(color: AppColors.expense),
+                ),
+              ),
             ],
           ),
         );
         if (confirm == true) {
-          await _state.clearAllTransactions();
-          setState(() {});
+          await _transactionsCubit.clearAllTransactions();
         }
       },
     );
@@ -718,19 +772,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
-                      style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600)),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   if (subtitle != null)
-                    Text(subtitle,
-                        style: TextStyle(
-                            color: AppColors.textMuted, fontSize: 12)),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
                 ],
               ),
             ),
-            if (trailing != null) trailing,
+            ?trailing,
           ],
         ),
       ),

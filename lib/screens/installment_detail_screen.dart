@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:sentra_app/core/services/app_state.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:sentra_app/core/services/finance_snapshot.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
+import 'package:sentra_app/features/categories/cubit/categories_cubit.dart';
+import 'package:sentra_app/features/installments/cubit/installments_cubit.dart';
+import 'package:sentra_app/features/settings/cubit/settings_cubit.dart';
+import 'package:sentra_app/features/transactions/cubit/transactions_cubit.dart';
 import 'package:sentra_app/screens/add_transaction_screen.dart';
 import 'package:sentra_app/screens/transaction_detail_screen.dart';
 
@@ -17,16 +22,28 @@ class InstallmentDetailScreen extends StatefulWidget {
 }
 
 class _InstallmentDetailScreenState extends State<InstallmentDetailScreen> {
-  final _state = AppState.instance;
+  late FinanceSnapshot _snapshot;
+
+  FinanceSnapshot _watchSnapshot() {
+    return FinanceSnapshot(
+      transactions: context.watch<TransactionsCubit>().state.transactions,
+      customCategories: context.watch<CategoriesCubit>().state.customCategories,
+      installmentPlans: context
+          .watch<InstallmentsCubit>()
+          .state
+          .installmentPlans,
+      currency: context.watch<SettingsCubit>().state.currency,
+    );
+  }
 
   InstallmentPlan get _plan =>
-      _state.installmentById(widget.plan.id) ?? widget.plan;
+      _snapshot.installmentById(widget.plan.id) ?? widget.plan;
 
-  List<Transaction> get _payments => _state.installmentPayments(_plan.id);
-  double get _paid => _state.installmentPaidAmount(_plan.id);
-  double get _remaining => _state.installmentRemaining(_plan.id);
-  double get _progress => _state.installmentProgress(_plan.id);
-  bool get _isPaidOff => _state.installmentIsPaidOff(_plan.id);
+  List<Transaction> get _payments => _snapshot.installmentPayments(_plan.id);
+  double get _paid => _snapshot.installmentPaidAmount(_plan.id);
+  double get _remaining => _snapshot.installmentRemaining(_plan.id);
+  double get _progress => _snapshot.installmentProgress(_plan.id);
+  bool get _isPaidOff => _snapshot.installmentIsPaidOff(_plan.id);
 
   Future<void> _openAddPayment() async {
     HapticFeedback.selectionClick();
@@ -38,7 +55,6 @@ class _InstallmentDetailScreenState extends State<InstallmentDetailScreen> {
         ),
       ),
     );
-    if (mounted) setState(() {});
   }
 
   Future<void> _openTransaction(Transaction tx) async {
@@ -47,11 +63,11 @@ class _InstallmentDetailScreenState extends State<InstallmentDetailScreen> {
         builder: (_) => TransactionDetailScreen(transaction: tx),
       ),
     );
-    if (mounted) setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
+    _snapshot = _watchSnapshot();
     return Scaffold(
       backgroundColor: AppColors.background,
       body: CustomScrollView(
@@ -369,10 +385,7 @@ class _InstallmentDetailScreenState extends State<InstallmentDetailScreen> {
               color: AppColors.surfaceElevated,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(
-              Icons.receipt_long_rounded,
-              color: AppColors.textMuted,
-            ),
+            child: Icon(Icons.receipt_long_rounded, color: AppColors.textMuted),
           ),
           const SizedBox(height: 12),
           Text(

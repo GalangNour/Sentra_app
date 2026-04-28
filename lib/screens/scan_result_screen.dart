@@ -1,10 +1,15 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
-import 'package:sentra_app/core/services/app_state.dart';
+import 'package:sentra_app/core/services/finance_snapshot.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
+import 'package:sentra_app/features/categories/cubit/categories_cubit.dart';
+import 'package:sentra_app/features/installments/cubit/installments_cubit.dart';
+import 'package:sentra_app/features/settings/cubit/settings_cubit.dart';
+import 'package:sentra_app/features/transactions/cubit/transactions_cubit.dart';
 
 // ─── Data Model ───────────────────────────────────────────
 
@@ -19,7 +24,6 @@ class ScanResultScreen extends StatefulWidget {
 
 class _ScanResultScreenState extends State<ScanResultScreen>
     with SingleTickerProviderStateMixin {
-  final _state = AppState.instance;
   static const _uuid = Uuid();
 
   late AnimationController _entryCtrl;
@@ -32,6 +36,19 @@ class _ScanResultScreenState extends State<ScanResultScreen>
   String? _customCategoryId;
   TransactionType _type = TransactionType.expense;
   bool _saved = false;
+  late FinanceSnapshot _snapshot;
+
+  FinanceSnapshot _watchSnapshot() {
+    return FinanceSnapshot(
+      transactions: context.watch<TransactionsCubit>().state.transactions,
+      customCategories: context.watch<CategoriesCubit>().state.customCategories,
+      installmentPlans: context
+          .watch<InstallmentsCubit>()
+          .state
+          .installmentPlans,
+      currency: context.watch<SettingsCubit>().state.currency,
+    );
+  }
 
   @override
   void initState() {
@@ -87,7 +104,7 @@ class _ScanResultScreenState extends State<ScanResultScreen>
       return;
     }
 
-    await _state.addTransaction(
+    await context.read<TransactionsCubit>().addTransaction(
       Transaction(
         id: _uuid.v4(),
         title: _titleCtrl.text.trim(),
@@ -109,6 +126,8 @@ class _ScanResultScreenState extends State<ScanResultScreen>
 
   @override
   Widget build(BuildContext context) {
+    _snapshot = _watchSnapshot();
+    _snapshot.applyCurrency();
     return Scaffold(
       backgroundColor: AppColors.background,
       body: FadeTransition(
@@ -288,7 +307,7 @@ class _ScanResultScreenState extends State<ScanResultScreen>
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Text(
-                _state.currency.symbol,
+                _snapshot.currency.symbol,
                 style: TextStyle(
                   color: _typeColor,
                   fontSize: 26,
@@ -450,7 +469,7 @@ class _ScanResultScreenState extends State<ScanResultScreen>
                 }),
               );
             }),
-            ..._state.customCategories.map((cc) {
+            ..._snapshot.customCategories.map((cc) {
               final sel = _customCategoryId == cc.id;
               return _catChip(
                 label: cc.name,

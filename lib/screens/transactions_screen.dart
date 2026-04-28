@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:sentra_app/core/services/app_state.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
+import 'package:sentra_app/features/transactions/cubit/transactions_cubit.dart';
 import 'package:sentra_app/screens/transaction_detail_screen.dart';
 import 'package:sentra_app/widgets/transaction_list_item.dart';
 
@@ -13,12 +14,12 @@ class TransactionsScreen extends StatefulWidget {
 }
 
 class _TransactionsScreenState extends State<TransactionsScreen> {
-  final _state = AppState.instance;
   TransactionType? _typeFilter;
   DateTimeRange? _dateRange;
 
   List<Transaction> get _filteredTransactions {
-    return _state.transactions.where((tx) {
+    final transactions = context.watch<TransactionsCubit>().state.transactions;
+    return transactions.where((tx) {
       if (_typeFilter != null && tx.type != _typeFilter) {
         return false;
       }
@@ -47,7 +48,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         builder: (_) => TransactionDetailScreen(transaction: tx),
       ),
     );
-    if (mounted) setState(() {});
   }
 
   Future<void> _pickDateRange() async {

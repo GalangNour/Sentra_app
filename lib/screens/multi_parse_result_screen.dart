@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
 import 'package:sentra_app/core/models/parsed_transaction.dart';
-import 'package:sentra_app/core/services/app_state.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
+import 'package:sentra_app/features/transactions/cubit/transactions_cubit.dart';
 import 'package:sentra_app/widgets/thousands_separator_formatter.dart';
 
 class MultiParseResultScreen extends StatefulWidget {
@@ -26,8 +27,7 @@ class _MultiParseResultScreenState extends State<MultiParseResultScreen> {
     _items = widget.transactions.map(_EditableItem.new).toList();
   }
 
-  double get _totalAmount =>
-      _items.fold(0, (sum, i) => sum + i.tx.amount);
+  double get _totalAmount => _items.fold(0, (sum, i) => sum + i.tx.amount);
 
   Future<void> _edit(int index) async {
     HapticFeedback.selectionClick();
@@ -48,25 +48,30 @@ class _MultiParseResultScreenState extends State<MultiParseResultScreen> {
 
   Future<void> _saveAll() async {
     HapticFeedback.mediumImpact();
+    final transactionsCubit = context.read<TransactionsCubit>();
     for (final item in _items) {
-      await AppState.instance.addTransaction(Transaction(
-        id: _uuid.v4(),
-        title: item.tx.title,
-        amount: item.tx.amount,
-        type: item.tx.type,
-        category: item.tx.category,
-        date: item.tx.date,
-        note: item.tx.note,
-      ));
+      await transactionsCubit.addTransaction(
+        Transaction(
+          id: _uuid.v4(),
+          title: item.tx.title,
+          amount: item.tx.amount,
+          type: item.tx.type,
+          category: item.tx.category,
+          date: item.tx.date,
+          note: item.tx.note,
+        ),
+      );
     }
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('${_items.length} transaksi disimpan'),
-      backgroundColor: AppColors.income,
-      behavior: SnackBarBehavior.floating,
-      duration: const Duration(seconds: 2),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${_items.length} transaksi disimpan'),
+        backgroundColor: AppColors.income,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
@@ -101,7 +106,11 @@ class _MultiParseResultScreenState extends State<MultiParseResultScreen> {
         children: [
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textSecondary, size: 20),
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: AppColors.textSecondary,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 4),
           Expanded(
@@ -136,7 +145,9 @@ class _MultiParseResultScreenState extends State<MultiParseResultScreen> {
 
   Widget _buildCard(int index) {
     final item = _items[index].tx;
-    final typeColor = item.type == TransactionType.expense ? AppColors.expense : AppColors.income;
+    final typeColor = item.type == TransactionType.expense
+        ? AppColors.expense
+        : AppColors.income;
     final catColor = CategoryMeta.color(item.category);
 
     return Dismissible(
@@ -151,7 +162,10 @@ class _MultiParseResultScreenState extends State<MultiParseResultScreen> {
           color: AppColors.expense.withAlpha(38),
           borderRadius: BorderRadius.circular(16),
         ),
-        child: const Icon(Icons.delete_outline_rounded, color: AppColors.expense),
+        child: const Icon(
+          Icons.delete_outline_rounded,
+          color: AppColors.expense,
+        ),
       ),
       child: GestureDetector(
         onTap: () => _edit(index),
@@ -187,7 +201,11 @@ class _MultiParseResultScreenState extends State<MultiParseResultScreen> {
                       color: catColor.withAlpha(26),
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: Icon(CategoryMeta.icon(item.category), color: catColor, size: 20),
+                    child: Icon(
+                      CategoryMeta.icon(item.category),
+                      color: catColor,
+                      size: 20,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -224,7 +242,10 @@ class _MultiParseResultScreenState extends State<MultiParseResultScreen> {
                 const SizedBox(width: 10),
                 // Amount + edit icon
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 14,
+                    horizontal: 14,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -240,11 +261,18 @@ class _MultiParseResultScreenState extends State<MultiParseResultScreen> {
                       const SizedBox(height: 6),
                       Row(
                         children: [
-                          Icon(Icons.edit_outlined, size: 11, color: AppColors.textMuted),
+                          Icon(
+                            Icons.edit_outlined,
+                            size: 11,
+                            color: AppColors.textMuted,
+                          ),
                           const SizedBox(width: 3),
                           Text(
                             'edit',
-                            style: TextStyle(color: AppColors.textMuted, fontSize: 10),
+                            style: TextStyle(
+                              color: AppColors.textMuted,
+                              fontSize: 10,
+                            ),
                           ),
                         ],
                       ),
@@ -268,7 +296,11 @@ class _MultiParseResultScreenState extends State<MultiParseResultScreen> {
       ),
       child: Text(
         label,
-        style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -320,7 +352,11 @@ class _MultiParseResultScreenState extends State<MultiParseResultScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.check_rounded, color: Colors.white, size: 18),
+                  const Icon(
+                    Icons.check_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Simpan Semua (${_items.length})',
@@ -349,7 +385,8 @@ class _EditableItem {
   _EditableItem(this.tx) : key = UniqueKey();
   _EditableItem._(this.tx, this.key);
 
-  _EditableItem copyWith(ParsedTransaction newTx) => _EditableItem._(newTx, key);
+  _EditableItem copyWith(ParsedTransaction newTx) =>
+      _EditableItem._(newTx, key);
 }
 
 // ─── Edit Bottom Sheet ────────────────────────────────────
@@ -376,7 +413,9 @@ class _EditSheetState extends State<_EditSheet> {
     _type = widget.transaction.type;
     _category = widget.transaction.category;
     _titleCtrl = TextEditingController(text: widget.transaction.title);
-    _amountCtrl = TextEditingController(text: _formatAmount(widget.transaction.amount));
+    _amountCtrl = TextEditingController(
+      text: _formatAmount(widget.transaction.amount),
+    );
     _date = widget.transaction.date;
   }
 
@@ -403,8 +442,7 @@ class _EditSheetState extends State<_EditSheet> {
   double get _parsedAmount =>
       double.tryParse(_amountCtrl.text.replaceAll('.', '')) ?? 0;
 
-  bool get _canSave =>
-      _titleCtrl.text.trim().isNotEmpty && _parsedAmount > 0;
+  bool get _canSave => _titleCtrl.text.trim().isNotEmpty && _parsedAmount > 0;
 
   Future<void> _pickDate() async {
     HapticFeedback.selectionClick();
@@ -429,15 +467,17 @@ class _EditSheetState extends State<_EditSheet> {
   void _done() {
     if (!_canSave) return;
     HapticFeedback.mediumImpact();
-    Navigator.of(context).pop(ParsedTransaction(
-      title: _titleCtrl.text.trim(),
-      amount: _parsedAmount,
-      type: _type,
-      category: _category,
-      date: _date,
-      note: widget.transaction.note,
-      rawInput: widget.transaction.rawInput,
-    ));
+    Navigator.of(context).pop(
+      ParsedTransaction(
+        title: _titleCtrl.text.trim(),
+        amount: _parsedAmount,
+        type: _type,
+        category: _category,
+        date: _date,
+        note: widget.transaction.note,
+        rawInput: widget.transaction.rawInput,
+      ),
+    );
   }
 
   @override
@@ -447,7 +487,9 @@ class _EditSheetState extends State<_EditSheet> {
         color: AppColors.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         child: Column(
@@ -504,14 +546,29 @@ class _EditSheetState extends State<_EditSheet> {
       padding: const EdgeInsets.all(3),
       child: Row(
         children: [
-          _typeBtn('Pengeluaran', Icons.arrow_upward_rounded, TransactionType.expense, AppColors.expense),
-          _typeBtn('Pemasukan', Icons.arrow_downward_rounded, TransactionType.income, AppColors.income),
+          _typeBtn(
+            'Pengeluaran',
+            Icons.arrow_upward_rounded,
+            TransactionType.expense,
+            AppColors.expense,
+          ),
+          _typeBtn(
+            'Pemasukan',
+            Icons.arrow_downward_rounded,
+            TransactionType.income,
+            AppColors.income,
+          ),
         ],
       ),
     );
   }
 
-  Widget _typeBtn(String label, IconData icon, TransactionType value, Color color) {
+  Widget _typeBtn(
+    String label,
+    IconData icon,
+    TransactionType value,
+    Color color,
+  ) {
     final sel = _type == value;
     return Expanded(
       child: GestureDetector(
@@ -561,17 +618,28 @@ class _EditSheetState extends State<_EditSheet> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
           child: Row(
             children: [
-              Text('Rp', style: TextStyle(color: AppColors.textMuted, fontSize: 16)),
+              Text(
+                'Rp',
+                style: TextStyle(color: AppColors.textMuted, fontSize: 16),
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: TextField(
                   controller: _amountCtrl,
                   keyboardType: TextInputType.number,
                   inputFormatters: [ThousandsSeparatorFormatter()],
-                  style: TextStyle(color: AppColors.textPrimary, fontSize: 22, fontWeight: FontWeight.w800),
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
                   decoration: InputDecoration(
                     hintText: '0',
-                    hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 22, fontWeight: FontWeight.w800),
+                    hintStyle: TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                    ),
                     border: InputBorder.none,
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(vertical: 10),
@@ -635,12 +703,18 @@ class _EditSheetState extends State<_EditSheet> {
             decoration: BoxDecoration(
               color: sel ? color.withAlpha(38) : AppColors.surfaceCard,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: sel ? color.withAlpha(120) : AppColors.surfaceBorder),
+              border: Border.all(
+                color: sel ? color.withAlpha(120) : AppColors.surfaceBorder,
+              ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(CategoryMeta.icon(cat), color: sel ? color : AppColors.textMuted, size: 13),
+                Icon(
+                  CategoryMeta.icon(cat),
+                  color: sel ? color : AppColors.textMuted,
+                  size: 13,
+                ),
                 const SizedBox(width: 5),
                 Text(
                   CategoryMeta.label(cat),
@@ -670,15 +744,27 @@ class _EditSheetState extends State<_EditSheet> {
         ),
         child: Row(
           children: [
-            Icon(Icons.calendar_today_rounded, color: AppColors.primary, size: 16),
+            Icon(
+              Icons.calendar_today_rounded,
+              color: AppColors.primary,
+              size: 16,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 Fmt.date(_date),
-                style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 16),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textMuted,
+              size: 16,
+            ),
           ],
         ),
       ),
@@ -698,7 +784,13 @@ class _EditSheetState extends State<_EditSheet> {
           color: active ? null : AppColors.surfaceCard,
           borderRadius: BorderRadius.circular(14),
           boxShadow: active
-              ? [BoxShadow(color: AppColors.primary.withAlpha(80), blurRadius: 16, offset: const Offset(0, 5))]
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withAlpha(80),
+                    blurRadius: 16,
+                    offset: const Offset(0, 5),
+                  ),
+                ]
               : null,
         ),
         child: Center(
@@ -716,12 +808,12 @@ class _EditSheetState extends State<_EditSheet> {
   }
 
   Widget _fieldLabel(String text) => Text(
-        text,
-        style: TextStyle(
-          color: AppColors.textMuted,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.5,
-        ),
-      );
+    text,
+    style: TextStyle(
+      color: AppColors.textMuted,
+      fontSize: 11,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.5,
+    ),
+  );
 }

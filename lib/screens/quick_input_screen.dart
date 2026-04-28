@@ -45,21 +45,29 @@ class _QuickInputScreenState extends State<QuickInputScreen> {
       if (!mounted) return;
       if (results.length == 1) {
         await Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => QuickParseResultScreen(parsed: results.first)),
+          MaterialPageRoute(
+            builder: (_) => QuickParseResultScreen(parsed: results.first),
+          ),
         );
       } else {
         await Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => MultiParseResultScreen(transactions: results)),
+          MaterialPageRoute(
+            builder: (_) => MultiParseResultScreen(transactions: results),
+          ),
         );
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Gagal memproses: ${e.toString()}'),
-        backgroundColor: AppColors.expense,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal memproses: ${e.toString()}'),
+          backgroundColor: AppColors.expense,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -224,13 +232,16 @@ class _QuickInputScreenState extends State<QuickInputScreen> {
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: _hasText
-                  ? (_useAI ? AppColors.primary : AppColors.textSecondary).withAlpha(120)
+                  ? (_useAI ? AppColors.primary : AppColors.textSecondary)
+                        .withAlpha(120)
                   : AppColors.surfaceBorder,
             ),
             boxShadow: _hasText
                 ? [
                     BoxShadow(
-                      color: (_useAI ? AppColors.primary : AppColors.textSecondary).withAlpha(20),
+                      color:
+                          (_useAI ? AppColors.primary : AppColors.textSecondary)
+                              .withAlpha(20),
                       blurRadius: 16,
                       offset: const Offset(0, 4),
                     ),
@@ -339,7 +350,11 @@ class _QuickInputScreenState extends State<QuickInputScreen> {
                 ],
               ),
             ),
-            Icon(Icons.north_west_rounded, size: 13, color: AppColors.textMuted),
+            Icon(
+              Icons.north_west_rounded,
+              size: 13,
+              color: AppColors.textMuted,
+            ),
           ],
         ),
       ),
@@ -361,7 +376,13 @@ class _QuickInputScreenState extends State<QuickInputScreen> {
             color: active ? null : AppColors.surfaceCard,
             borderRadius: BorderRadius.circular(16),
             boxShadow: active
-                ? [BoxShadow(color: AppColors.primary.withAlpha(90), blurRadius: 20, offset: const Offset(0, 6))]
+                ? [
+                    BoxShadow(
+                      color: AppColors.primary.withAlpha(90),
+                      blurRadius: 20,
+                      offset: const Offset(0, 6),
+                    ),
+                  ]
                 : null,
           ),
           child: _loading
@@ -371,12 +392,19 @@ class _QuickInputScreenState extends State<QuickInputScreen> {
                     const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Text(
                       _useAI ? 'Menganalisis...' : 'Memproses...',
-                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ],
                 )
@@ -384,7 +412,11 @@ class _QuickInputScreenState extends State<QuickInputScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     if (_useAI) ...[
-                      Icon(Icons.auto_awesome_rounded, color: active ? Colors.white : AppColors.textMuted, size: 16),
+                      Icon(
+                        Icons.auto_awesome_rounded,
+                        color: active ? Colors.white : AppColors.textMuted,
+                        size: 16,
+                      ),
                       const SizedBox(width: 6),
                     ],
                     Text(
@@ -396,7 +428,11 @@ class _QuickInputScreenState extends State<QuickInputScreen> {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    Icon(Icons.arrow_forward_rounded, color: active ? Colors.white : AppColors.textMuted, size: 18),
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      color: active ? Colors.white : AppColors.textMuted,
+                      size: 18,
+                    ),
                   ],
                 ),
         ),
