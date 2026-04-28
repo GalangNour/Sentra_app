@@ -1,28 +1,32 @@
 # Sentra - Smart Budget & Keuangan 💸
 
-**Sentra** adalah aplikasi pencatatan keuangan pribadi dan *budgeting* modern berbasis Flutter. Aplikasi ini dirancang untuk memberikan pengalaman pengguna yang premium, cepat, dan intuitif dengan fitur unggulan pemindaian struk otomatis (OCR) menggunakan **Google ML Kit**. Seluruh data disimpan secara lokal di perangkat Anda menggunakan **Hive**, menjamin privasi dan kecepatan maksimal.
+**Sentra** adalah aplikasi pencatatan keuangan pribadi dan *budgeting* modern berbasis Flutter. Aplikasi ini dirancang untuk memberikan pengalaman pengguna yang premium, cepat, dan intuitif dengan fitur unggulan **Quick Parse AI (Gemini)** dan pemindaian struk otomatis (OCR) menggunakan **Google ML Kit**. Seluruh data disimpan secara lokal di perangkat Anda menggunakan **Hive**, menjamin privasi dan kecepatan maksimal.
+
+Aplikasi ini baru saja melalui migrasi besar-besaran dengan menerapkan arsitektur **BLoC (Business Logic Component)** untuk *state management* yang lebih tangguh dan mudah dikembangkan (*clean code principles*).
 
 ---
 
 ## ✨ Fitur Utama
 
 *   **💳 Pencatatan Transaksi:** Catat pemasukan dan pengeluaran dengan antarmuka yang bersih dan interaktif. Tersedia formatter otomatis untuk nominal (ribuan/jutaan).
-*   **📸 Scan Struk Otomatis (OCR):** Gunakan kamera pintar untuk memindai struk belanja fisik Anda. Sentra menggunakan kecerdasan buatan dari Google ML Kit untuk mendeteksi total harga secara otomatis sehingga Anda tidak perlu mengetik manual.
-*   **📂 Kategori Kustom:** Buat kategori pengeluaran/pemasukan Anda sendiri. Pilih dari berbagai *icon* dan *warna* kustom untuk menyesuaikan dengan gaya personal Anda.
+*   **🤖 Quick Input AI (Gemini 2.5 Flash):** Cukup ketik kalimat sehari-hari (misal: "makan bakso 15 ribu dan bayar parkir 2rb"), AI akan secara otomatis mendeteksi, mengekstrak, dan memisahkan seluruh transaksi Anda.
+*   **📸 Scan Struk Otomatis (OCR):** Gunakan kamera pintar untuk memindai struk belanja fisik Anda. Sentra mendeteksi nominal transaksi dan total belanja secara otomatis.
+*   **💳 Manajemen Cicilan (Installments):** Pantau rencana cicilan Anda, hubungkan pengeluaran bulanan dengan cicilan yang sedang berjalan secara rapi dan terorganisir.
+*   **🎨 Tema Dinamis & Kategori Kustom:** Buat kategori transaksi sendiri (icon & warna). Pengguna juga dapat mengubah tema warna utama aplikasi secara dinamis sesuai selera.
 *   **💱 Dukungan Multi Mata Uang:** Ubah mata uang secara langsung di pengaturan (Rupiah, USD, SGD, EUR, dll) dengan bottom sheet pintar yang mendukung *scroll* dinamis.
 *   **📊 Statistik & Budgeting:** Pantau pengeluaran vs pemasukan dan lihat pembagian kategori transaksi Anda secara visual di tab Statistik.
-*   **🛠️ Edit & Manajemen Transaksi:** Buka kartu transaksi untuk melihat detail lengkap, ubah catatan, ubah kategori, atau hapus riwayat secara permanen.
-*   **🔒 Privasi Penuh (Local-First):** Aplikasi 100% *offline*. Seluruh riwayat transaksi dan preferensi aman tersimpan di dalam perangkat Anda.
+*   **🔒 Privasi Penuh (Local-First):** Aplikasi 100% *offline*. Seluruh riwayat transaksi dan preferensi aman tersimpan di dalam perangkat Anda (`Hive`).
 
 ---
 
-## 📸 Teknologi yang Digunakan
+## 📸 Teknologi & Arsitektur yang Digunakan
 
 *   **Framework:** [Flutter](https://flutter.dev/) (SDK ^3.11.4)
-*   **Penyimpanan Lokal:** [Hive](https://pub.dev/packages/hive_flutter) (Cepat, NoSQL database)
+*   **State Management:** [flutter_bloc](https://pub.dev/packages/flutter_bloc) (Pemisahan *business logic* yang clean dan testable)
+*   **Penyimpanan Lokal:** [Hive](https://pub.dev/packages/hive_flutter) (Cepat, NoSQL database dengan `AppStorage` abstraction)
 *   **Kamera & OCR:** `camera`, `google_mlkit_text_recognition`
-*   **UI/UX:** Desain khusus dengan *gradient*, animasi transisi mikro (`TweenAnimationBuilder`, `AnimatedContainer`), dan tipografi dari `google_fonts`.
-*   **Lainnya:** `intl`, `uuid`, `shared_preferences`.
+*   **AI (Generative AI):** `google_generative_ai` (Gemini 2.5 Flash API)
+*   **UI/UX:** Desain khusus dengan *gradient*, *haptic feedback*, transisi mulus, dan ekstraksi *Clean Code UI widgets* (`FocusFieldWrapper`, `TransactionListItem`).
 
 ---
 
@@ -44,35 +48,43 @@ Pastikan Anda sudah menginstal alat-alat berikut:
     ```bash
     flutter pub get
     ```
-3.  **Jalankan aplikasi (Debug):**
+3.  **Menjalankan Aplikasi (Menambahkan API Key Gemini):**
+    Karena fitur **Quick Input** bergantung pada Gemini AI, Anda perlu menyertakan API Key saat *build/run* melalui argumen `--dart-define`:
     ```bash
-    flutter run
+    flutter run --dart-define=GEMINI_API_KEY=KODE_API_KEY_ANDA_DISINI
     ```
     *Catatan: Sangat disarankan untuk menjalankan aplikasi di perangkat Android fisik jika ingin menguji fitur Kamera (Pemindaian Struk OCR).*
 
 ---
 
-## 🎨 Arsitektur & Folder Struktur (Singkat)
+## 🎨 Arsitektur Folder (BLoC)
 ```text
 lib/
 ├── core/
-│   ├── services/      # Logic database (AppState dengan Hive), OcrService (ML Kit)
-│   ├── theme/         # Konstanta warna, gaya teks, gradien kustom
-│   └── utils/         # Model data (Transaction, BudgetItem, CurrencyInfo)
-├── screens/
+│   ├── config/        # Konfigurasi aplikasi (ApiConfig)
+│   ├── models/        # Model data (Transaction, BudgetItem, dll)
+│   ├── services/      # Abstraksi sistem (AppStorage, OcrService, QuickParseService)
+│   └── theme/         # Konstanta warna, gaya teks, tema kustom
+├── features/          # Feature-first structure (State Management)
+│   ├── finance/       # FinanceBloc (Menangani state transaksi, kategori, cicilan)
+│   └── settings/      # SettingsBloc (Menangani state tema, mata uang, dll)
+├── screens/           # Antarmuka Halaman
 │   ├── home_screen.dart             # Dashboard utama & Daftar transaksi
-│   ├── add_transaction_screen.dart  # Form tambah/edit transaksi
-│   ├── transaction_detail_screen.dart # Layar detail transaksi
-│   ├── camera_screen.dart           # Antarmuka kamera kustom
-│   ├── scan_result_screen.dart      # Layar validasi hasil scan struk
-│   └── settings_screen.dart         # Pengaturan & Manajemen kategori
+│   ├── quick_input_screen.dart      # Input via Teks (AI Gemini)
+│   ├── add_transaction_screen.dart  # Form tambah/edit transaksi manual
+│   ├── add_installment_screen.dart  # Manajemen cicilan bulanan
+│   ├── camera_screen.dart           # Antarmuka kamera kustom (OCR)
+│   └── transaction_detail_screen.dart # Layar detail transaksi
+├── widgets/           # Reusable UI Components
+│   ├── transaction_list_item.dart
+│   └── focus_field_wrapper.dart
 └── main.dart                        # Entry point aplikasi
 ```
 
 ---
 
 ## 🤝 Berkontribusi
-Jika Anda ingin memperbaiki *bug*, meningkatkan algoritma ekstraksi teks struk, atau menambahkan fitur baru:
+Jika Anda ingin memperbaiki *bug*, meningkatkan algoritma BLoC, atau menambahkan fitur baru:
 1. *Fork* proyek ini
 2. Buat *branch* fitur Anda (`git checkout -b fitur-baru`)
 3. *Commit* perubahan Anda (`git commit -m 'Menambahkan fitur keren'`)
