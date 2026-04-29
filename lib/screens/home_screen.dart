@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,13 +10,12 @@ import 'package:sentra_app/features/categories/cubit/categories_cubit.dart';
 import 'package:sentra_app/features/installments/cubit/installments_cubit.dart';
 import 'package:sentra_app/features/settings/cubit/settings_cubit.dart';
 import 'package:sentra_app/features/transactions/cubit/transactions_cubit.dart';
-import 'package:sentra_app/screens/add_installment_screen.dart';
 import 'package:sentra_app/screens/add_transaction_screen.dart';
 import 'package:sentra_app/screens/camera_screen.dart';
 import 'package:sentra_app/screens/installment_detail_screen.dart';
+import 'package:sentra_app/screens/installments_list_screen.dart';
 import 'package:sentra_app/screens/settings_screen.dart';
 import 'package:sentra_app/screens/transaction_detail_screen.dart';
-import 'package:sentra_app/screens/installments_list_screen.dart';
 import 'package:sentra_app/screens/quick_input_screen.dart';
 import 'package:sentra_app/screens/transactions_screen.dart';
 import 'package:sentra_app/widgets/transaction_list_item.dart';
@@ -103,10 +102,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
   }
 
-  Future<void> _openAddInstallment() async {
+  Future<void> _openInstallments() async {
     await Navigator.of(
       context,
-    ).push(MaterialPageRoute(builder: (_) => const AddInstallmentScreen()));
+    ).push(MaterialPageRoute(builder: (_) => const InstallmentsListScreen()));
   }
 
   Future<void> _openInstallmentDetail(InstallmentPlan plan) async {
@@ -152,7 +151,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         SliverToBoxAdapter(child: _buildHeader()),
         SliverToBoxAdapter(child: _buildBalanceCard()),
         SliverToBoxAdapter(child: _buildQuickAdd()),
-        SliverToBoxAdapter(child: _buildInstallmentSection()),
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
@@ -263,16 +261,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       margin: const EdgeInsets.fromLTRB(20, 4, 20, 0),
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1A1F3E), Color(0xFF252D52)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: AppColors.balanceHeroGradient,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: AppColors.primary.withAlpha(51)),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withAlpha(30),
+            color: AppColors.primary.withAlpha(
+              ThemeConfig.current.isDark ? 30 : 18,
+            ),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),
@@ -388,14 +384,49 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _AiActionsCard(
-            onQuickInput: _openQuickInput,
-            onScan: _openCamera,
-          ),
+          _AiActionsCard(onQuickInput: _openQuickInput, onScan: _openCamera),
           const SizedBox(height: 10),
-          _buildSecondaryActions(),
+          _buildActionButtons(),
         ],
       ),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _secondaryBtn(
+                'Pengeluaran',
+                AppColors.expense,
+                Icons.remove_circle_outline_rounded,
+                () => _openAddTransaction(type: TransactionType.expense),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _secondaryBtn(
+                'Pemasukan',
+                AppColors.income,
+                Icons.add_circle_outline_rounded,
+                () => _openAddTransaction(type: TransactionType.income),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: _secondaryBtn(
+            'Cicilan',
+            AppColors.warning,
+            Icons.payments_rounded,
+            _openInstallments,
+          ),
+        ),
+      ],
     );
   }
 
@@ -813,14 +844,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              gradient: savings >= 0
-                  ? AppColors.incomeGradient
-                  : AppColors.expenseGradient,
+              gradient: AppColors.balanceGradient,
               borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: (savings >= 0 ? AppColors.income : AppColors.expense)
+                    .withAlpha(60),
+              ),
               boxShadow: [
                 BoxShadow(
                   color: (savings >= 0 ? AppColors.income : AppColors.expense)
-                      .withAlpha(51),
+                      .withAlpha(24),
                   blurRadius: 16,
                   offset: const Offset(0, 6),
                 ),
@@ -832,15 +865,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Total Tabungan',
-                      style: TextStyle(color: Colors.white70, fontSize: 13),
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       Fmt.full(savings),
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: savings >= 0
+                            ? AppColors.income
+                            : AppColors.expense,
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
                       ),
@@ -850,15 +888,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    const Text(
+                    Text(
                       'Savings Rate',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '${savingsRate.toStringAsFixed(1)}%',
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: savings >= 0
+                            ? AppColors.income
+                            : AppColors.expense,
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
                       ),
@@ -1256,10 +1299,9 @@ class _AiActionsCardState extends State<_AiActionsCard> {
   void initState() {
     super.initState();
     _scheduleNext();
-    _cursorTimer = Timer.periodic(
-      const Duration(milliseconds: 530),
-      (_) { if (mounted) setState(() => _cursorOn = !_cursorOn); },
-    );
+    _cursorTimer = Timer.periodic(const Duration(milliseconds: 530), (_) {
+      if (mounted) setState(() => _cursorOn = !_cursorOn);
+    });
   }
 
   @override
@@ -1465,15 +1507,11 @@ class _AiActionsCardState extends State<_AiActionsCard> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF1976D2), Color(0xFF0D47A1)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                      gradient: AppColors.primaryGradient,
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF1565C0).withAlpha(60),
+                          color: AppColors.primary.withAlpha(60),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -1507,13 +1545,13 @@ class _AiActionsCardState extends State<_AiActionsCard> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF1565C0).withAlpha(25),
+                                color: AppColors.primary.withAlpha(18),
                                 borderRadius: BorderRadius.circular(6),
                               ),
-                              child: const Text(
+                              child: Text(
                                 'OCR',
                                 style: TextStyle(
-                                  color: Color(0xFF64B5F6),
+                                  color: AppColors.primary,
                                   fontSize: 9,
                                   fontWeight: FontWeight.w700,
                                 ),

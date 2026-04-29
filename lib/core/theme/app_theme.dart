@@ -1,5 +1,104 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+// ─── Font Presets ─────────────────────────────────────────────
+
+class FontPreset {
+  final String id;
+  final String name;
+  final String description;
+  final String emoji;
+  final TextTheme Function(TextTheme base) applyTextTheme;
+  final TextStyle Function({Color? color, double? fontSize, FontWeight? fontWeight}) style;
+
+  const FontPreset._internal({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.emoji,
+    required this.applyTextTheme,
+    required this.style,
+  });
+
+  static final List<FontPreset> all = [
+    FontPreset._internal(
+      id: 'dm_sans',
+      name: 'DM Sans',
+      description: 'Modern & Bersih',
+      emoji: '✦',
+      applyTextTheme: GoogleFonts.dmSansTextTheme,
+      style: ({color, fontSize, fontWeight}) => GoogleFonts.dmSans(
+        color: color,
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+      ),
+    ),
+    FontPreset._internal(
+      id: 'inter',
+      name: 'Inter',
+      description: 'Profesional',
+      emoji: '⬡',
+      applyTextTheme: GoogleFonts.interTextTheme,
+      style: ({color, fontSize, fontWeight}) => GoogleFonts.inter(
+        color: color,
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+      ),
+    ),
+    FontPreset._internal(
+      id: 'nunito',
+      name: 'Nunito',
+      description: 'Santai & Ramah',
+      emoji: '◉',
+      applyTextTheme: GoogleFonts.nunitoTextTheme,
+      style: ({color, fontSize, fontWeight}) => GoogleFonts.nunito(
+        color: color,
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+      ),
+    ),
+    FontPreset._internal(
+      id: 'space_grotesk',
+      name: 'Space Grotesk',
+      description: 'Techy & Tegas',
+      emoji: '▲',
+      applyTextTheme: GoogleFonts.spaceGroteskTextTheme,
+      style: ({color, fontSize, fontWeight}) => GoogleFonts.spaceGrotesk(
+        color: color,
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+      ),
+    ),
+    FontPreset._internal(
+      id: 'poppins',
+      name: 'Poppins',
+      description: 'Elegan & Bulat',
+      emoji: '●',
+      applyTextTheme: GoogleFonts.poppinsTextTheme,
+      style: ({color, fontSize, fontWeight}) => GoogleFonts.poppins(
+        color: color,
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+      ),
+    ),
+    FontPreset._internal(
+      id: 'jetbrains_mono',
+      name: 'JetBrains Mono',
+      description: 'Monospace / Dev',
+      emoji: '»',
+      applyTextTheme: GoogleFonts.jetBrainsMonoTextTheme,
+      style: ({color, fontSize, fontWeight}) => GoogleFonts.jetBrainsMono(
+        color: color,
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+      ),
+    ),
+  ];
+
+  static FontPreset fromId(String id) =>
+      all.firstWhere((f) => f.id == id, orElse: () => all[0]);
+}
 
 // ─── Preset Definitions ───────────────────────────────────────
 
@@ -7,6 +106,7 @@ class ThemePreset {
   final String id;
   final String name;
   final IconData icon;
+  final Brightness brightness;
   final Color background;
   final Color surface;
   final Color surfaceCard;
@@ -21,6 +121,7 @@ class ThemePreset {
     required this.id,
     required this.name,
     required this.icon,
+    required this.brightness,
     required this.background,
     required this.surface,
     required this.surfaceCard,
@@ -37,6 +138,7 @@ class ThemePreset {
       id: 'navy',
       name: 'Navy',
       icon: Icons.water_rounded,
+      brightness: Brightness.dark,
       background: Color(0xFF0E1117),
       surface: Color(0xFF161B27),
       surfaceCard: Color(0xFF1E2535),
@@ -51,6 +153,7 @@ class ThemePreset {
       id: 'amoled',
       name: 'AMOLED',
       icon: Icons.brightness_1_rounded,
+      brightness: Brightness.dark,
       background: Color(0xFF000000),
       surface: Color(0xFF080808),
       surfaceCard: Color(0xFF111111),
@@ -65,6 +168,7 @@ class ThemePreset {
       id: 'midnight',
       name: 'Midnight',
       icon: Icons.nights_stay_rounded,
+      brightness: Brightness.dark,
       background: Color(0xFF0D0B1A),
       surface: Color(0xFF130F26),
       surfaceCard: Color(0xFF1A1535),
@@ -79,6 +183,7 @@ class ThemePreset {
       id: 'forest',
       name: 'Forest',
       icon: Icons.park_rounded,
+      brightness: Brightness.dark,
       background: Color(0xFF0A110E),
       surface: Color(0xFF0F1A13),
       surfaceCard: Color(0xFF152019),
@@ -93,6 +198,7 @@ class ThemePreset {
       id: 'slate',
       name: 'Slate',
       icon: Icons.layers_rounded,
+      brightness: Brightness.dark,
       background: Color(0xFF0F1117),
       surface: Color(0xFF161A1E),
       surfaceCard: Color(0xFF1E2328),
@@ -103,7 +209,55 @@ class ThemePreset {
       textMuted: Color(0xFF485566),
       defaultAccent: Color(0xFF38BDF8),
     ),
+    ThemePreset(
+      id: 'paper',
+      name: 'Paper',
+      icon: Icons.wb_sunny_rounded,
+      brightness: Brightness.light,
+      background: Color(0xFFF6F1E8),
+      surface: Color(0xFFFBF8F2),
+      surfaceCard: Color(0xFFFFFFFF),
+      surfaceElevated: Color(0xFFF3ECE0),
+      surfaceBorder: Color(0xFFE2D8C8),
+      textPrimary: Color(0xFF221B14),
+      textSecondary: Color(0xFF6B5D4D),
+      textMuted: Color(0xFFA0907D),
+      defaultAccent: Color(0xFFB8742B),
+    ),
+    ThemePreset(
+      id: 'mist',
+      name: 'Mist',
+      icon: Icons.cloud_queue_rounded,
+      brightness: Brightness.light,
+      background: Color(0xFFF4F7FB),
+      surface: Color(0xFFF9FBFF),
+      surfaceCard: Color(0xFFFFFFFF),
+      surfaceElevated: Color(0xFFEFF4FA),
+      surfaceBorder: Color(0xFFD7E2EF),
+      textPrimary: Color(0xFF182433),
+      textSecondary: Color(0xFF52657D),
+      textMuted: Color(0xFF8CA0B7),
+      defaultAccent: Color(0xFF3A7BFF),
+    ),
+    ThemePreset(
+      id: 'sage',
+      name: 'Sage',
+      icon: Icons.spa_rounded,
+      brightness: Brightness.light,
+      background: Color(0xFFF2F7F1),
+      surface: Color(0xFFF8FCF7),
+      surfaceCard: Color(0xFFFFFFFF),
+      surfaceElevated: Color(0xFFEAF2E7),
+      surfaceBorder: Color(0xFFD4E3D0),
+      textPrimary: Color(0xFF183022),
+      textSecondary: Color(0xFF58715F),
+      textMuted: Color(0xFF91A497),
+      defaultAccent: Color(0xFF2E9E6F),
+    ),
   ];
+
+  static List<ThemePreset> forBrightness(Brightness brightness) =>
+      all.where((preset) => preset.brightness == brightness).toList();
 
   static ThemePreset fromId(String id) =>
       all.firstWhere((p) => p.id == id, orElse: () => all[0]);
@@ -135,21 +289,28 @@ class AccentColor {
 class ThemeConfig {
   final ThemePreset preset;
   final Color accent;
+  final FontPreset font;
 
-  const ThemeConfig({required this.preset, required this.accent});
+  const ThemeConfig({
+    required this.preset,
+    required this.accent,
+    required this.font,
+  });
 
   Color get accentDark => Color.lerp(accent, Colors.black, 0.25)!;
   Color get accentLight => Color.lerp(accent, Colors.white, 0.3)!;
+  bool get isDark => preset.brightness == Brightness.dark;
 
   static ThemeConfig _current = ThemeConfig(
     preset: ThemePreset.all[0],
     accent: ThemePreset.all[0].defaultAccent,
+    font: FontPreset.all[0],
   );
 
   static ThemeConfig get current => _current;
 
-  static void apply(ThemePreset preset, Color accent) {
-    _current = ThemeConfig(preset: preset, accent: accent);
+  static void apply(ThemePreset preset, Color accent, FontPreset font) {
+    _current = ThemeConfig(preset: preset, accent: accent, font: font);
   }
 }
 
@@ -209,23 +370,54 @@ class AppColors {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+
+  static LinearGradient get balanceHeroGradient {
+    return LinearGradient(
+      colors: [
+        Color.lerp(
+          AppColors.surface,
+          AppColors.primary.withAlpha(ThemeConfig.current.isDark ? 110 : 22),
+          ThemeConfig.current.isDark ? 0.3 : 0.55,
+        )!,
+        Color.lerp(
+          AppColors.surfaceElevated,
+          AppColors.primary.withAlpha(ThemeConfig.current.isDark ? 70 : 10),
+          ThemeConfig.current.isDark ? 0.45 : 0.75,
+        )!,
+      ],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+  }
 }
 
 // ─── AppTheme ─────────────────────────────────────────────────
 
 class AppTheme {
-  static ThemeData build({required ThemePreset preset, required Color accent}) {
-    ThemeConfig.apply(preset, accent);
+  static ThemeData build({
+    required ThemePreset preset,
+    required Color accent,
+    FontPreset? font,
+  }) {
+    final resolvedFont = font ?? FontPreset.all[0];
+    ThemeConfig.apply(preset, accent, resolvedFont);
+    final isDark = preset.brightness == Brightness.dark;
     return ThemeData(
-      brightness: Brightness.dark,
+      brightness: preset.brightness,
       scaffoldBackgroundColor: AppColors.background,
-      colorScheme: ColorScheme.dark(
-        primary: AppColors.primary,
-        secondary: AppColors.income,
-        surface: AppColors.surface,
-        error: AppColors.expense,
-      ),
-      textTheme: GoogleFonts.interTextTheme(
+      colorScheme:
+          (isDark ? const ColorScheme.dark() : const ColorScheme.light())
+              .copyWith(
+                primary: AppColors.primary,
+                secondary: AppColors.income,
+                surface: AppColors.surface,
+                error: AppColors.expense,
+                onPrimary: Colors.white,
+                onSecondary: Colors.white,
+                onSurface: AppColors.textPrimary,
+                onError: Colors.white,
+              ),
+      textTheme: resolvedFont.applyTextTheme(
         TextTheme(
           headlineLarge: TextStyle(
             color: AppColors.textPrimary,
@@ -261,7 +453,8 @@ class AppTheme {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
-        titleTextStyle: GoogleFonts.inter(
+        surfaceTintColor: Colors.transparent,
+        titleTextStyle: resolvedFont.style(
           color: AppColors.textPrimary,
           fontSize: 20,
           fontWeight: FontWeight.w700,
@@ -272,6 +465,10 @@ class AppTheme {
         color: AppColors.surfaceCard,
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: AppColors.surfaceCard,
+        surfaceTintColor: Colors.transparent,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -291,13 +488,34 @@ class AppTheme {
         labelStyle: TextStyle(color: AppColors.textSecondary),
         hintStyle: TextStyle(color: AppColors.textMuted),
       ),
+      dividerColor: AppColors.surfaceBorder,
+      canvasColor: AppColors.surface,
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+      ),
       useMaterial3: true,
+    );
+  }
+
+  static SystemUiOverlayStyle overlayStyle(ThemePreset preset) {
+    final isDark = preset.brightness == Brightness.dark;
+    final navColor = preset.surface;
+    return SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+      statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      systemNavigationBarColor: navColor,
+      systemNavigationBarIconBrightness: isDark
+          ? Brightness.light
+          : Brightness.dark,
     );
   }
 
   static ThemeData get current => build(
     preset: ThemeConfig.current.preset,
     accent: ThemeConfig.current.accent,
+    font: ThemeConfig.current.font,
   );
 
   // alias kept for any remaining references

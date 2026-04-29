@@ -269,11 +269,7 @@ class _ScanResultScreenState extends State<ScanResultScreen>
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1A1F3E), Color(0xFF252D52)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: AppColors.balanceHeroGradient,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: _typeColor.withAlpha(76)),
       ),

@@ -20,6 +20,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late List<CustomCategory> _customCategories;
   late ThemePreset _themePreset;
   late Color _accent;
+  late FontPreset _fontPreset;
   late SettingsCubit _settingsCubit;
   late CategoriesCubit _categoriesCubit;
   late TransactionsCubit _transactionsCubit;
@@ -36,6 +37,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _currency = settingsState.currency;
     _themePreset = settingsState.themePreset;
     _accent = settingsState.accent;
+    _fontPreset = settingsState.fontPreset;
     _customCategories = categoriesState.customCategories;
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -68,6 +70,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 24),
           _sectionLabel('Tema'),
           _buildThemeSection(),
+          const SizedBox(height: 24),
+          _sectionLabel('Gaya Font'),
+          _buildFontSection(),
           const SizedBox(height: 24),
           _sectionLabel('Kategori Kustom'),
           _buildCustomCategoryList(),
@@ -221,22 +226,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Future<void> _setThemeBrightness(Brightness brightness) async {
+    if (_themePreset.brightness == brightness) return;
+    final nextPreset = ThemePreset.forBrightness(brightness).first;
+    await _settingsCubit.setTheme(nextPreset, _accent);
+  }
+
   // ─── Theme Section ──────────────────────────────────────
 
   Widget _buildThemeSection() {
-    final current = ThemeConfig(preset: _themePreset, accent: _accent);
+    final current = ThemeConfig(preset: _themePreset, accent: _accent, font: _fontPreset);
+    final visiblePresets = ThemePreset.forBrightness(current.preset.brightness);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceCard,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.surfaceBorder),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _themeModeChip(
+                  label: 'Dark',
+                  icon: Icons.dark_mode_rounded,
+                  selected: current.preset.brightness == Brightness.dark,
+                  onTap: () => _setThemeBrightness(Brightness.dark),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _themeModeChip(
+                  label: 'Light',
+                  icon: Icons.light_mode_rounded,
+                  selected: current.preset.brightness == Brightness.light,
+                  onTap: () => _setThemeBrightness(Brightness.light),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
         // Preset cards
         SizedBox(
           height: 96,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            itemCount: ThemePreset.all.length,
+            itemCount: visiblePresets.length,
             separatorBuilder: (_, __) => const SizedBox(width: 10),
             itemBuilder: (_, i) {
-              final preset = ThemePreset.all[i];
+              final preset = visiblePresets[i];
               final isSelected = preset.id == current.preset.id;
               return GestureDetector(
                 onTap: () async {
@@ -412,11 +454,218 @@ class _SettingsScreenState extends State<SettingsScreen> {
     decoration: BoxDecoration(color: color, shape: BoxShape.circle),
   );
 
+  Widget _themeModeChip({
+    required String label,
+    required IconData icon,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primary.withAlpha(18)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected
+                ? AppColors.primary.withAlpha(76)
+                : Colors.transparent,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: selected ? AppColors.primary : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? AppColors.primary : AppColors.textSecondary,
+                fontSize: 13,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   String _accentName(Color accent) {
     final match = AccentColor.all
         .where((a) => a.color.toARGB32() == accent.toARGB32())
         .firstOrNull;
     return match?.name ?? 'Kustom';
+  }
+
+  // ─── Font Section ───────────────────────────────────────
+
+  Widget _buildFontSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 136,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: FontPreset.all.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (_, i) {
+              final font = FontPreset.all[i];
+              final isSelected = font.id == _fontPreset.id;
+              return GestureDetector(
+                onTap: () async {
+                  HapticFeedback.selectionClick();
+                  await _settingsCubit.setFont(font);
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 148,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.primary.withAlpha(18)
+                        : AppColors.surfaceCard,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.surfaceBorder,
+                      width: isSelected ? 2 : 1,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: AppColors.primary.withAlpha(50),
+                              blurRadius: 14,
+                              spreadRadius: 1,
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            font.emoji,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : AppColors.textMuted,
+                            ),
+                          ),
+                          const Spacer(),
+                          if (isSelected)
+                            Icon(
+                              Icons.check_circle_rounded,
+                              size: 16,
+                              color: AppColors.primary,
+                            ),
+                        ],
+                      ),
+                      const Spacer(),
+                      // Preview angka
+                      Text(
+                        'Rp 1.250.000',
+                        style: font.style(
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        font.name,
+                        style: font.style(
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.textPrimary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        font.description,
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 10,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 10),
+        // Preview strip aktif
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceCard,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.surfaceBorder),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.text_fields_rounded,
+                size: 16,
+                color: AppColors.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Font aktif: ',
+                style: TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 12,
+                ),
+              ),
+              Text(
+                _fontPreset.name,
+                style: _fontPreset.style(
+                  color: AppColors.primary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                _fontPreset.description,
+                style: TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   // ─── Custom Categories ──────────────────────────────────

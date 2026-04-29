@@ -59,7 +59,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       initialDateRange: _dateRange,
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
-          colorScheme: ColorScheme.dark(
+          colorScheme: Theme.of(ctx).colorScheme.copyWith(
             primary: AppColors.primary,
             surface: AppColors.surfaceCard,
           ),

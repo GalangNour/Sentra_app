@@ -240,7 +240,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       lastDate: DateTime.now(),
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
-          colorScheme: ColorScheme.dark(
+          colorScheme: Theme.of(ctx).colorScheme.copyWith(
             primary: AppColors.primary,
             surface: AppColors.surfaceCard,
           ),
@@ -701,7 +701,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: AppColors.balanceGradient,
+        gradient: AppColors.balanceHeroGradient,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: _typeColor.withAlpha(76)),
       ),

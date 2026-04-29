@@ -25,4 +25,11 @@ class SettingsRepository {
     await _box.put('theme_preset_id', presetId);
     await _box.put('theme_accent', accentValue);
   }
+
+  String getFontPresetId() =>
+      _box.get('font_preset_id', defaultValue: 'dm_sans') as String;
+
+  Future<void> setFontPresetId(String id) async {
+    await _box.put('font_preset_id', id);
+  }
 }

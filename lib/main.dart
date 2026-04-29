@@ -19,14 +19,6 @@ void main() async {
   final storage = await AppStorage.init();
 
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-  SystemChrome.setSystemUIOverlayStyle(
-    SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: AppColors.surface,
-      systemNavigationBarIconBrightness: Brightness.light,
-    ),
-  );
 
   runApp(SentraApp(storage: storage));
 }
@@ -74,12 +66,16 @@ class SentraApp extends StatelessWidget {
         ],
         child: BlocBuilder<SettingsCubit, SettingsState>(
           builder: (context, settingsState) {
+            SystemChrome.setSystemUIOverlayStyle(
+              AppTheme.overlayStyle(settingsState.themePreset),
+            );
             return MaterialApp(
               title: 'Sentra',
               debugShowCheckedModeBanner: false,
               theme: AppTheme.build(
                 preset: settingsState.themePreset,
                 accent: settingsState.accent,
+                font: settingsState.fontPreset,
               ),
               home: const HomeScreen(),
             );

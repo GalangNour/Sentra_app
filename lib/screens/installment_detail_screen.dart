@@ -10,6 +10,7 @@ import 'package:sentra_app/features/settings/cubit/settings_cubit.dart';
 import 'package:sentra_app/features/transactions/cubit/transactions_cubit.dart';
 import 'package:sentra_app/screens/add_transaction_screen.dart';
 import 'package:sentra_app/screens/transaction_detail_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class InstallmentDetailScreen extends StatefulWidget {
   final InstallmentPlan plan;
@@ -22,7 +23,29 @@ class InstallmentDetailScreen extends StatefulWidget {
 }
 
 class _InstallmentDetailScreenState extends State<InstallmentDetailScreen> {
+  static const _prefKey = 'installment_hide_amounts';
   late FinanceSnapshot _snapshot;
+  bool _hideAmounts = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHideState();
+  }
+
+  Future<void> _loadHideState() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() => _hideAmounts = prefs.getBool(_prefKey) ?? false);
+    }
+  }
+
+  Future<void> _toggleHideAmounts() async {
+    final newVal = !_hideAmounts;
+    setState(() => _hideAmounts = newVal);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_prefKey, newVal);
+  }
 
   FinanceSnapshot _watchSnapshot() {
     return FinanceSnapshot(
@@ -44,6 +67,11 @@ class _InstallmentDetailScreenState extends State<InstallmentDetailScreen> {
   double get _remaining => _snapshot.installmentRemaining(_plan.id);
   double get _progress => _snapshot.installmentProgress(_plan.id);
   bool get _isPaidOff => _snapshot.installmentIsPaidOff(_plan.id);
+
+  String _money(double amount, {bool compact = false}) {
+    if (_hideAmounts) return '••••••';
+    return compact ? Fmt.compact(amount) : Fmt.full(amount);
+  }
 
   Future<void> _openAddPayment() async {
     HapticFeedback.selectionClick();
@@ -132,6 +160,16 @@ class _InstallmentDetailScreenState extends State<InstallmentDetailScreen> {
         ),
       ),
       actions: [
+        IconButton(
+          tooltip: _hideAmounts ? 'Tampilkan nominal' : 'Sembunyikan nominal',
+          onPressed: _toggleHideAmounts,
+          icon: Icon(
+            _hideAmounts
+                ? Icons.visibility_off_rounded
+                : Icons.visibility_rounded,
+            color: AppColors.textSecondary,
+          ),
+        ),
         if (!_isPaidOff)
           GestureDetector(
             onTap: _openAddPayment,
@@ -231,7 +269,7 @@ class _InstallmentDetailScreenState extends State<InstallmentDetailScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            Fmt.full(_remaining),
+            _money(_remaining),
             style: TextStyle(
               color: AppColors.textPrimary,
               fontSize: 34,
@@ -275,17 +313,17 @@ class _InstallmentDetailScreenState extends State<InstallmentDetailScreen> {
       ),
       child: Column(
         children: [
-          _summaryRow('Total Cicilan', Fmt.full(_plan.totalAmount)),
+          _summaryRow('Total Cicilan', _money(_plan.totalAmount)),
           _divider(),
           _summaryRow(
             'Sudah Dibayar',
-            Fmt.full(_paid),
+            _money(_paid),
             valueColor: AppColors.income,
           ),
           _divider(),
           _summaryRow(
             'Sisa',
-            Fmt.full(_remaining),
+            _money(_remaining),
             valueColor: AppColors.warning,
           ),
           _divider(),
@@ -462,7 +500,7 @@ class _InstallmentDetailScreenState extends State<InstallmentDetailScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '-${Fmt.compact(tx.amount)}',
+                  '-${_money(tx.amount, compact: true)}',
                   style: const TextStyle(
                     color: AppColors.expense,
                     fontSize: 14,

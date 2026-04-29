@@ -13,6 +13,7 @@ class SettingsCubit extends Cubit<SettingsState> {
           currency: CurrencyInfo.fromCode(_repository.getCurrencyCode()),
           themePreset: ThemePreset.fromId(_repository.getThemePresetId()),
           accent: Color(_repository.getThemeAccent()),
+          fontPreset: FontPreset.fromId(_repository.getFontPresetId()),
         ),
       ) {
     _apply(state);
@@ -20,9 +21,9 @@ class SettingsCubit extends Cubit<SettingsState> {
 
   final SettingsRepository _repository;
 
-  void _apply(SettingsState state) {
-    Fmt.setCurrency(state.currency);
-    ThemeConfig.apply(state.themePreset, state.accent);
+  void _apply(SettingsState s) {
+    Fmt.setCurrency(s.currency);
+    ThemeConfig.apply(s.themePreset, s.accent, s.fontPreset);
   }
 
   Future<void> setCurrency(CurrencyInfo currency) async {
@@ -38,6 +39,13 @@ class SettingsCubit extends Cubit<SettingsState> {
       accentValue: accent.toARGB32(),
     );
     final next = state.copyWith(themePreset: preset, accent: accent);
+    _apply(next);
+    emit(next);
+  }
+
+  Future<void> setFont(FontPreset font) async {
+    await _repository.setFontPresetId(font.id);
+    final next = state.copyWith(fontPreset: font);
     _apply(next);
     emit(next);
   }
