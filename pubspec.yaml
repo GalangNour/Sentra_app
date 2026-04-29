@@ -23,6 +23,7 @@ dependencies:
   uuid: ^4.4.0
   path_provider_android: 2.2.14
   google_generative_ai: ^0.4.6
+  speech_to_text: ^7.3.0
 
 dev_dependencies:
   flutter_test:

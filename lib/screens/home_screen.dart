@@ -16,9 +16,13 @@ import 'package:sentra_app/screens/installment_detail_screen.dart';
 import 'package:sentra_app/screens/installments_list_screen.dart';
 import 'package:sentra_app/screens/settings_screen.dart';
 import 'package:sentra_app/screens/transaction_detail_screen.dart';
+import 'package:sentra_app/core/models/parsed_transaction.dart';
+import 'package:sentra_app/screens/multi_parse_result_screen.dart';
 import 'package:sentra_app/screens/quick_input_screen.dart';
+import 'package:sentra_app/screens/quick_parse_result_screen.dart';
 import 'package:sentra_app/screens/transactions_screen.dart';
 import 'package:sentra_app/widgets/transaction_list_item.dart';
+import 'package:sentra_app/widgets/voice_input_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,8 +33,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _tabIndex = 0;
-  late AnimationController _fabCtrl;
-  late Animation<double> _fabScale;
   late FinanceSnapshot _snapshot;
 
   FinanceSnapshot _watchSnapshot() {
@@ -48,26 +50,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _fabCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 180),
-    );
-    _fabScale = Tween<double>(
-      begin: 1.0,
-      end: 0.88,
-    ).animate(CurvedAnimation(parent: _fabCtrl, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() {
-    _fabCtrl.dispose();
-    super.dispose();
   }
 
   Future<void> _openCamera() async {
     HapticFeedback.mediumImpact();
-    await _fabCtrl.forward();
-    await _fabCtrl.reverse();
     if (!mounted) return;
     await Navigator.of(context).push(
       PageRouteBuilder(
@@ -119,6 +105,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     await Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => const QuickInputScreen()));
+  }
+
+  Future<void> _openVoiceInput() async {
+    HapticFeedback.mediumImpact();
+    final results = await showModalBottomSheet<List<ParsedTransaction>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const VoiceInputSheet(),
+    );
+    if (!mounted || results == null || results.isEmpty) return;
+    if (results.length == 1) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => QuickParseResultScreen(parsed: results.first),
+        ),
+      );
+    } else {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => MultiParseResultScreen(transactions: results),
+        ),
+      );
+    }
   }
 
   Future<void> _openAllTransactions() async {
@@ -205,53 +215,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         right: 20,
         bottom: 12,
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ShaderMask(
-                shaderCallback: (b) =>
-                    AppColors.primaryGradient.createShader(b),
-                child: const Text(
-                  'Sentra',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                  ),
-                ),
+          ShaderMask(
+            shaderCallback: (b) => AppColors.primaryGradient.createShader(b),
+            child: const Text(
+              'Sentra',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
               ),
-              Text(
-                'Budget & Keuangan',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 13),
-              ),
-            ],
+            ),
           ),
-          Row(
-            children: [
-              _headerBtn(Icons.settings_outlined, onTap: _openSettings),
-            ],
+          Text(
+            'Budget & Keuangan',
+            style: TextStyle(color: AppColors.textMuted, fontSize: 13),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _headerBtn(IconData icon, {required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 42,
-        height: 42,
-        decoration: BoxDecoration(
-          color: AppColors.surfaceCard,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.surfaceBorder),
-        ),
-        child: Icon(icon, color: AppColors.textSecondary, size: 20),
       ),
     );
   }
@@ -381,14 +364,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget _buildQuickAdd() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _AiActionsCard(onQuickInput: _openQuickInput, onScan: _openCamera),
-          const SizedBox(height: 10),
-          _buildActionButtons(),
-        ],
-      ),
+      child: _buildActionButtons(),
     );
   }
 
@@ -1166,73 +1142,147 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ],
       ),
       child: SafeArea(
-        child: SizedBox(
-          height: 64,
-          child: Row(
-            children: [
-              Expanded(
-                child: _navItem(
-                  0,
-                  Icons.home_rounded,
-                  Icons.home_outlined,
-                  'Beranda',
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                child: ScaleTransition(
-                  scale: _fabScale,
-                  child: GestureDetector(
-                    onTap: () async {
-                      await _fabCtrl.forward();
-                      await _fabCtrl.reverse();
-                      if (mounted) _openQuickInput();
-                    },
-                    child: Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withAlpha(115),
-                            blurRadius: 18,
-                            spreadRadius: 2,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.auto_awesome_rounded,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: _navItem(
-                  1,
-                  Icons.bar_chart_rounded,
-                  Icons.bar_chart_outlined,
-                  'Statistik',
-                ),
-              ),
-            ],
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildAIBar(),
+            _buildNavBar(),
+          ],
         ),
       ),
     );
   }
 
-  Widget _navItem(
-    int idx,
-    IconData activeIcon,
-    IconData inactiveIcon,
-    String label,
-  ) {
+  Widget _buildAIBar() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          height: 1.5,
+          decoration: BoxDecoration(gradient: AppColors.primaryGradient),
+        ),
+        Container(
+          height: 72,
+          color: AppColors.surface,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              Expanded(
+                child: _aiSideBtn(
+                  Icons.auto_awesome_rounded,
+                  'AI Text',
+                  _openQuickInput,
+                ),
+              ),
+              _aiMicBtn(),
+              Expanded(
+                child: _aiSideBtn(
+                  Icons.document_scanner_outlined,
+                  'Scan',
+                  _openCamera,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Container(height: 1, color: AppColors.surfaceBorder),
+      ],
+    );
+  }
+
+  Widget _aiSideBtn(IconData icon, String label, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      behavior: HitTestBehavior.opaque,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ShaderMask(
+            shaderCallback: (b) => AppColors.primaryGradient.createShader(b),
+            child: Icon(icon, color: Colors.white, size: 18),
+          ),
+          const SizedBox(width: 7),
+          ShaderMask(
+            shaderCallback: (b) => AppColors.primaryGradient.createShader(b),
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _aiMicBtn() {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        _openVoiceInput();
+      },
+      child: Container(
+        width: 54,
+        height: 54,
+        margin: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: AppColors.primaryGradient,
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withAlpha(130),
+              blurRadius: 18,
+              spreadRadius: 1,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: const Icon(
+          Icons.mic_rounded,
+          color: Colors.white,
+          size: 24,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavBar() {
+    return SizedBox(
+      height: 58,
+      child: Row(
+        children: [
+          Expanded(
+            child: _navItem(
+              0,
+              Icons.home_rounded,
+              Icons.home_outlined,
+              'Beranda',
+            ),
+          ),
+          Expanded(
+            child: _navItem(
+              1,
+              Icons.bar_chart_rounded,
+              Icons.bar_chart_outlined,
+              'Statistik',
+            ),
+          ),
+          Expanded(
+            child: _settingsNavItem(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _navItem(int idx, IconData activeIcon, IconData inactiveIcon, String label) {
     final sel = _tabIndex == idx;
     return GestureDetector(
       onTap: () => setState(() => _tabIndex = idx),
@@ -1242,9 +1292,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         children: [
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
             decoration: BoxDecoration(
-              color: sel ? AppColors.primary.withAlpha(31) : Colors.transparent,
+              color:
+                  sel ? AppColors.primary.withAlpha(31) : Colors.transparent,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -1266,320 +1317,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
     );
   }
-}
 
-// ─── _AiActionsCard ──────────────────────────────────────
-
-class _AiActionsCard extends StatefulWidget {
-  final VoidCallback onQuickInput;
-  final VoidCallback onScan;
-  const _AiActionsCard({required this.onQuickInput, required this.onScan});
-
-  @override
-  State<_AiActionsCard> createState() => _AiActionsCardState();
-}
-
-class _AiActionsCardState extends State<_AiActionsCard> {
-  static const _examples = [
-    'kemarin beli kopi 15rb',
-    'bensin 30k tadi pagi, beli lagi 20k',
-    'gajian bulan ini 5jt',
-    'bayar listrik 200rb',
-    'nonton bioskop 54rb',
-  ];
-
-  int _idx = 0;
-  int _chars = 0;
-  bool _erasing = false;
-  bool _cursorOn = true;
-  Timer? _typeTimer;
-  Timer? _cursorTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    _scheduleNext();
-    _cursorTimer = Timer.periodic(const Duration(milliseconds: 530), (_) {
-      if (mounted) setState(() => _cursorOn = !_cursorOn);
-    });
-  }
-
-  @override
-  void dispose() {
-    _typeTimer?.cancel();
-    _cursorTimer?.cancel();
-    super.dispose();
-  }
-
-  void _scheduleNext() {
-    _typeTimer = Timer(
-      _erasing
-          ? const Duration(milliseconds: 32)
-          : const Duration(milliseconds: 72),
-      _onTick,
-    );
-  }
-
-  void _onTick() {
-    if (!mounted) return;
-    final text = _examples[_idx];
-    if (!_erasing) {
-      if (_chars < text.length) {
-        setState(() => _chars++);
-        _scheduleNext();
-      } else {
-        _typeTimer = Timer(const Duration(milliseconds: 1800), () {
-          if (!mounted) return;
-          setState(() => _erasing = true);
-          _scheduleNext();
-        });
-      }
-    } else {
-      if (_chars > 0) {
-        setState(() => _chars--);
-        _scheduleNext();
-      } else {
-        setState(() {
-          _erasing = false;
-          _idx = (_idx + 1) % _examples.length;
-        });
-        _typeTimer = Timer(const Duration(milliseconds: 350), () {
-          if (!mounted) return;
-          _scheduleNext();
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final typed = _examples[_idx].substring(0, _chars);
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceCard,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.primary.withAlpha(50)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withAlpha(22),
-            blurRadius: 20,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
+  Widget _settingsNavItem() {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        _openSettings();
+      },
+      behavior: HitTestBehavior.opaque,
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // ── Gradient header ──
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              gradient: AppColors.primaryGradient,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(21),
-                topRight: Radius.circular(21),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.auto_awesome_rounded,
-                  color: Colors.white,
-                  size: 13,
-                ),
-                const SizedBox(width: 6),
-                const Text(
-                  'AI · Catat Transaksi Cepat',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-              ],
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            child: Icon(
+              Icons.settings_outlined,
+              color: AppColors.textMuted,
+              size: 22,
             ),
           ),
-          // ── Ketik Cepat row ──
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.mediumImpact();
-              widget.onQuickInput();
-            },
-            behavior: HitTestBehavior.opaque,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      gradient: AppColors.primaryGradient,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withAlpha(60),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.edit_note_rounded,
-                      color: Colors.white,
-                      size: 22,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Ketik Cepat',
-                          style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        RichText(
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          text: TextSpan(
-                            children: [
-                              TextSpan(
-                                text: typed.isEmpty
-                                    ? 'Ceritakan transaksimu...'
-                                    : '"$typed',
-                                style: TextStyle(
-                                  color: typed.isEmpty
-                                      ? AppColors.textMuted
-                                      : AppColors.primaryLight,
-                                  fontSize: 12,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                              if (typed.isNotEmpty)
-                                TextSpan(
-                                  text: _cursorOn ? '|' : ' ',
-                                  style: TextStyle(
-                                    color: AppColors.primaryLight,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w300,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    color: AppColors.textMuted,
-                    size: 14,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // ── Divider ──
-          Container(
-            height: 1,
-            margin: const EdgeInsets.only(left: 74),
-            color: AppColors.surfaceBorder,
-          ),
-          // ── Scan Struk row ──
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.mediumImpact();
-              widget.onScan();
-            },
-            behavior: HitTestBehavior.opaque,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      gradient: AppColors.primaryGradient,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withAlpha(60),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.document_scanner_outlined,
-                      color: Colors.white,
-                      size: 22,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              'Scan Struk',
-                              style: TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withAlpha(18),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                'OCR',
-                                style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          'Foto struk belanja, data terisi otomatis',
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 12,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    color: AppColors.textMuted,
-                    size: 14,
-                  ),
-                ],
-              ),
+          const SizedBox(height: 2),
+          Text(
+            'Setelan',
+            style: TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 11,
+              fontWeight: FontWeight.w400,
             ),
           ),
         ],
@@ -1587,3 +1350,4 @@ class _AiActionsCardState extends State<_AiActionsCard> {
     );
   }
 }
+

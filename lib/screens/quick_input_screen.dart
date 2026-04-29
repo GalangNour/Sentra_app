@@ -1,22 +1,35 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sentra_app/core/services/quick_parse_service.dart';
+import 'package:sentra_app/core/services/voice_input_service.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/screens/multi_parse_result_screen.dart';
 import 'package:sentra_app/screens/quick_parse_result_screen.dart';
 
 class QuickInputScreen extends StatefulWidget {
-  const QuickInputScreen({super.key});
+  const QuickInputScreen({super.key, this.autoStartVoice = false});
+
+  final bool autoStartVoice;
 
   @override
   State<QuickInputScreen> createState() => _QuickInputScreenState();
 }
 
-class _QuickInputScreenState extends State<QuickInputScreen> {
+class _QuickInputScreenState extends State<QuickInputScreen>
+    with SingleTickerProviderStateMixin {
   final _ctrl = TextEditingController();
+  final _voice = VoiceInputService();
+
   bool _hasText = false;
   bool _loading = false;
   bool _useAI = true;
+  bool _isListening = false;
+  bool _speechAvailable = false;
+  double _soundLevel = 0.0;
+
+  late final AnimationController _waveCtrl;
 
   @override
   void initState() {
@@ -25,17 +38,94 @@ class _QuickInputScreenState extends State<QuickInputScreen> {
       final has = _ctrl.text.trim().isNotEmpty;
       if (has != _hasText) setState(() => _hasText = has);
     });
+    _waveCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+    _initVoice();
+  }
+
+  Future<void> _initVoice() async {
+    final available = await _voice.init();
+    if (!mounted) return;
+    setState(() => _speechAvailable = available);
+    if (available && widget.autoStartVoice) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (mounted) _toggleVoice();
+    }
   }
 
   @override
   void dispose() {
     _ctrl.dispose();
+    _waveCtrl.dispose();
+    _voice.cancel();
     super.dispose();
+  }
+
+  Future<void> _toggleVoice() async {
+    if (_isListening) {
+      HapticFeedback.selectionClick();
+      await _voice.stop();
+      setState(() {
+        _isListening = false;
+        _soundLevel = 0;
+      });
+    } else {
+      HapticFeedback.mediumImpact();
+      setState(() => _isListening = true);
+      await _voice.startListening(
+        onResult: _onVoiceResult,
+        onError: _onVoiceError,
+        onSoundLevel: (level) {
+          if (mounted) setState(() => _soundLevel = level.clamp(0.0, 10.0));
+        },
+      );
+    }
+  }
+
+  void _onVoiceResult(String text, bool isFinal) {
+    if (!mounted) return;
+    _ctrl.text = text;
+    _ctrl.selection = TextSelection.collapsed(offset: text.length);
+    if (isFinal) {
+      setState(() {
+        _isListening = false;
+        _soundLevel = 0;
+      });
+      if (text.isNotEmpty) HapticFeedback.selectionClick();
+    }
+  }
+
+  void _onVoiceError(String error) {
+    if (!mounted) return;
+    setState(() {
+      _isListening = false;
+      _soundLevel = 0;
+    });
+    if (error != 'error_speech_timeout' && error != 'error_no_match') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Suara tidak terdeteksi, coba lagi'),
+          backgroundColor: AppColors.expense,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
   }
 
   Future<void> _submit() async {
     final text = _ctrl.text.trim();
     if (text.isEmpty || _loading) return;
+
+    if (_isListening) {
+      await _voice.stop();
+      setState(() {
+        _isListening = false;
+        _soundLevel = 0;
+      });
+    }
 
     HapticFeedback.mediumImpact();
     setState(() => _loading = true);
@@ -63,9 +153,7 @@ class _QuickInputScreenState extends State<QuickInputScreen> {
           content: Text('Gagal memproses: ${e.toString()}'),
           backgroundColor: AppColors.expense,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     } finally {
@@ -89,6 +177,10 @@ class _QuickInputScreenState extends State<QuickInputScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildTextField(),
+                    if (_speechAvailable) ...[
+                      const SizedBox(height: 16),
+                      _buildMicSection(),
+                    ],
                     const SizedBox(height: 24),
                     _buildExamples(),
                   ],
@@ -233,7 +325,7 @@ class _QuickInputScreenState extends State<QuickInputScreen> {
             border: Border.all(
               color: _hasText
                   ? (_useAI ? AppColors.primary : AppColors.textSecondary)
-                        .withAlpha(120)
+                      .withAlpha(120)
                   : AppColors.surfaceBorder,
             ),
             boxShadow: _hasText
@@ -275,6 +367,159 @@ class _QuickInputScreenState extends State<QuickInputScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildMicSection() {
+    return GestureDetector(
+      onTap: _loading ? null : _toggleVoice,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: _isListening
+              ? AppColors.expense.withAlpha(18)
+              : AppColors.surfaceCard,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: _isListening
+                ? AppColors.expense.withAlpha(160)
+                : AppColors.surfaceBorder,
+          ),
+          boxShadow: _isListening
+              ? [
+                  BoxShadow(
+                    color: AppColors.expense.withAlpha(40),
+                    blurRadius: 20,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _isListening
+                        ? AppColors.expense
+                        : AppColors.surfaceElevated,
+                    border: Border.all(
+                      color: _isListening
+                          ? AppColors.expense
+                          : AppColors.surfaceBorder,
+                    ),
+                  ),
+                  child: Icon(
+                    _isListening ? Icons.stop_rounded : Icons.mic_rounded,
+                    color:
+                        _isListening ? Colors.white : AppColors.textSecondary,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _isListening ? 'Mendengarkan...' : 'Gunakan suara',
+                      style: TextStyle(
+                        color: _isListening
+                            ? AppColors.expense
+                            : AppColors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      _isListening
+                          ? 'Ketuk untuk berhenti'
+                          : 'Ucapkan transaksimu',
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                if (!_isListening)
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.textMuted,
+                    size: 18,
+                  ),
+              ],
+            ),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              child: _isListening
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: _buildWaveform(),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWaveform() {
+    const barCount = 28;
+    const maxBarHeight = 32.0;
+    const minBarHeight = 3.0;
+
+    return AnimatedBuilder(
+      animation: _waveCtrl,
+      builder: (context, _) {
+        final t = _waveCtrl.value;
+        // Normalize sound level 0–10 → 0.0–1.0, with floor so bars never flat
+        final energy = (_soundLevel / 10.0).clamp(0.05, 1.0);
+
+        return SizedBox(
+          height: maxBarHeight,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: List.generate(barCount, (i) {
+              // Each bar gets a unique wave phase
+              final phase = (i / barCount) * 2 * pi;
+              final wave = (sin(t * 2 * pi + phase) + 1) / 2; // 0.0 – 1.0
+              final height =
+                  minBarHeight + wave * energy * (maxBarHeight - minBarHeight);
+
+              // Color: center bars slightly brighter
+              final center = (barCount - 1) / 2;
+              final dist = (i - center).abs() / center;
+              final alpha = (255 * (1.0 - dist * 0.5)).round();
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 60),
+                  width: 3,
+                  height: height,
+                  decoration: BoxDecoration(
+                    color: AppColors.expense.withAlpha(alpha),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              );
+            }),
+          ),
+        );
+      },
     );
   }
 
