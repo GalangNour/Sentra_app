@@ -4,6 +4,7 @@ import 'package:sentra_app/core/services/ai_context_builder.dart';
 import 'package:sentra_app/core/services/ai_service.dart';
 import 'package:sentra_app/core/services/finance_snapshot.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
+import 'package:sentra_app/widgets/chat_bubbles/index.dart';
 
 class SentraBrainScreen extends StatefulWidget {
   const SentraBrainScreen({super.key, required this.snapshot});
@@ -101,10 +102,12 @@ class _SentraBrainScreenState extends State<SentraBrainScreen> {
         userMessage: trimmed,
       );
       if (!mounted) return;
+      final parsed = AiService.parseResponse(reply);
       setState(() {
         _messages.add(ChatMessage(
           role: 'assistant',
           text: reply,
+          parsed: parsed,
           timestamp: DateTime.now(),
         ));
         _isLoading = false;
@@ -288,112 +291,120 @@ class _SentraBrainScreenState extends State<SentraBrainScreen> {
     );
   }
 
-  Widget _buildBubble(ChatMessage msg, int index) {
-    final isUser = msg.role == 'user';
-    final isError = msg.role == 'error';
-
+  Widget _animatedBubble({required int index, required Widget child}) {
     return TweenAnimationBuilder<double>(
       key: ValueKey(index),
       tween: Tween(begin: 0.0, end: 1.0),
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOutCubic,
-      builder: (_, v, child) => Opacity(
+      builder: (_, v, w) => Opacity(
         opacity: v,
-        child: Transform.translate(
-          offset: Offset(0, 10 * (1 - v)),
-          child: child,
-        ),
+        child: Transform.translate(offset: Offset(0, 10 * (1 - v)), child: w),
       ),
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Align(
-          alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.78,
-            ),
-            child: Column(
-              crossAxisAlignment:
-                  isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
+      child: child,
+    );
+  }
+
+  Widget _buildBubble(ChatMessage msg, int index) {
+    if (msg.role == 'user') {
+      return _animatedBubble(
+        index: index,
+        child: ChatBubbleText(
+          text: msg.text,
+          timestamp: msg.timestamp,
+          isUser: true,
+        ),
+      );
+    }
+    if (msg.role == 'error') {
+      return _animatedBubble(
+        index: index,
+        child: _buildErrorBubble(msg),
+      );
+    }
+    return _animatedBubble(
+      index: index,
+      child: ChatBubbleFactory(
+        parsed: msg.parsed ?? {'type': 'text', 'text': msg.text},
+        timestamp: msg.timestamp,
+        onSendMessage: _sendMessage,
+        onSaveData: (_) {},
+      ),
+    );
+  }
+
+  Widget _buildErrorBubble(ChatMessage msg) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.78,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.expense.withAlpha(30),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    topRight: Radius.circular(16),
+                    bottomLeft: Radius.circular(4),
+                    bottomRight: Radius.circular(16),
                   ),
-                  decoration: BoxDecoration(
-                    color: isError
-                        ? AppColors.expense.withAlpha(30)
-                        : isUser
-                        ? AppColors.primary
-                        : AppColors.surfaceCard,
-                    borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(16),
-                      topRight: const Radius.circular(16),
-                      bottomLeft: Radius.circular(isUser ? 16 : 4),
-                      bottomRight: Radius.circular(isUser ? 4 : 16),
-                    ),
-                    border: isError
-                        ? Border.all(color: AppColors.expense.withAlpha(60))
-                        : null,
-                  ),
-                  child: isError
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.error_outline_rounded,
-                                  color: AppColors.expense,
-                                  size: 14,
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    msg.text,
-                                    style: const TextStyle(
-                                      color: AppColors.expense,
-                                      fontSize: 13,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                  border: Border.all(color: AppColors.expense.withAlpha(60)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.error_outline_rounded,
+                          color: AppColors.expense,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            msg.text,
+                            style: const TextStyle(
+                              color: AppColors.expense,
+                              fontSize: 13,
+                              height: 1.4,
                             ),
-                            const SizedBox(height: 8),
-                            GestureDetector(
-                              onTap: _retryLastMessage,
-                              child: Text(
-                                'Coba lagi →',
-                                style: TextStyle(
-                                  color: AppColors.info,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        )
-                      : Text(
-                          msg.text,
-                          style: TextStyle(
-                            color: isUser
-                                ? Colors.white
-                                : AppColors.textPrimary,
-                            fontSize: 14,
-                            height: 1.5,
                           ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: _retryLastMessage,
+                      child: Text(
+                        'Coba lagi →',
+                        style: TextStyle(
+                          color: AppColors.info,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  _formatTime(msg.timestamp),
-                  style: TextStyle(color: AppColors.textMuted, fontSize: 10),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                _formatTime(msg.timestamp),
+                style: TextStyle(color: AppColors.textMuted, fontSize: 10),
+              ),
+            ],
           ),
         ),
       ),

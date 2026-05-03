@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:sentra_app/core/config/api_config.dart';
@@ -5,11 +6,13 @@ import 'package:sentra_app/core/config/api_config.dart';
 class ChatMessage {
   final String role; // 'user', 'assistant', atau 'error'
   final String text;
+  final Map<String, dynamic>? parsed; // hasil parse JSON, hanya untuk assistant
   final DateTime timestamp;
 
   const ChatMessage({
     required this.role,
     required this.text,
+    this.parsed,
     required this.timestamp,
   });
 }
@@ -53,6 +56,20 @@ class AiService {
       debugPrint('[SentraBrain] sendMessage error: $e');
       debugPrint('[SentraBrain] stacktrace: $st');
       rethrow;
+    }
+  }
+
+  /// Parse raw string dari AI → Map JSON.
+  /// Jika bukan JSON valid, fallback ke {type: text, text: rawString}.
+  static Map<String, dynamic> parseResponse(String raw) {
+    try {
+      final cleaned = raw
+          .replaceAll(RegExp(r'```json\s*'), '')
+          .replaceAll(RegExp(r'```\s*'), '')
+          .trim();
+      return jsonDecode(cleaned) as Map<String, dynamic>;
+    } catch (_) {
+      return {'type': 'text', 'text': raw};
     }
   }
 
