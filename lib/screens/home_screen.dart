@@ -20,6 +20,7 @@ import 'package:sentra_app/core/models/parsed_transaction.dart';
 import 'package:sentra_app/screens/multi_parse_result_screen.dart';
 import 'package:sentra_app/screens/quick_input_screen.dart';
 import 'package:sentra_app/screens/quick_parse_result_screen.dart';
+import 'package:sentra_app/screens/sentra_brain_screen.dart';
 import 'package:sentra_app/screens/transactions_screen.dart';
 import 'package:sentra_app/widgets/transaction_list_item.dart';
 import 'package:sentra_app/widgets/voice_input_sheet.dart';
@@ -161,6 +162,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         SliverToBoxAdapter(child: _buildHeader()),
         SliverToBoxAdapter(child: _buildBalanceCard()),
         SliverToBoxAdapter(child: _buildQuickAdd()),
+        SliverToBoxAdapter(child: _buildSentraBrainCard()),
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
@@ -633,6 +635,82 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               textAlign: TextAlign.center,
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSentraBrainCard() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.mediumImpact();
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => SentraBrainScreen(snapshot: _snapshot),
+            ),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            gradient: AppColors.primaryGradient,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withAlpha(80),
+                blurRadius: 20,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(38),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Sentra Brain',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Tanya apapun soal keuanganmu',
+                      style: TextStyle(
+                        color: Colors.white.withAlpha(200),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: Colors.white,
+                size: 14,
+              ),
+            ],
+          ),
         ),
       ),
     );

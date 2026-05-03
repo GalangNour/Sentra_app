@@ -1,0 +1,623 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:sentra_app/core/services/ai_context_builder.dart';
+import 'package:sentra_app/core/services/ai_service.dart';
+import 'package:sentra_app/core/services/finance_snapshot.dart';
+import 'package:sentra_app/core/theme/app_theme.dart';
+
+class SentraBrainScreen extends StatefulWidget {
+  const SentraBrainScreen({super.key, required this.snapshot});
+
+  final FinanceSnapshot snapshot;
+
+  @override
+  State<SentraBrainScreen> createState() => _SentraBrainScreenState();
+}
+
+class _SentraBrainScreenState extends State<SentraBrainScreen> {
+  final List<ChatMessage> _messages = [];
+  bool _isLoading = false;
+  final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  late String _systemContext;
+
+  static const List<String> _suggestions = [
+    'Bulan ini uang habis dimana?',
+    'Bisa nabung berapa bulan ini?',
+    'Pengeluaran makan berapa?',
+    'Kasih tips hemat untukku',
+    'Prediksi saldo akhir bulan',
+    'Kategori pengeluaran terbesar?',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _systemContext = AiContextBuilder.build(widget.snapshot);
+    _messages.add(ChatMessage(
+      role: 'assistant',
+      text: 'Hai Sobat! 👋 Ada yang bisa aku bantu soal keuanganmu hari ini?',
+      timestamp: DateTime.now(),
+    ));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  Future<void> _sendMessage(String text) async {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty || _isLoading) return;
+    HapticFeedback.mediumImpact();
+    _controller.clear();
+
+    if (!AiService.isConfigured) {
+      setState(() {
+        _messages.add(ChatMessage(
+          role: 'error',
+          text: 'API Key belum dikonfigurasi. Isi geminiApiKey di lib/env.dart',
+          timestamp: DateTime.now(),
+        ));
+      });
+      _scrollToBottom();
+      return;
+    }
+
+    // Build history before adding new message (skip welcome, skip errors)
+    final history = _messages
+        .skip(1)
+        .where((m) => m.role != 'error')
+        .toList();
+
+    setState(() {
+      _messages.add(ChatMessage(
+        role: 'user',
+        text: trimmed,
+        timestamp: DateTime.now(),
+      ));
+      _isLoading = true;
+    });
+    _scrollToBottom();
+
+    try {
+      final reply = await AiService.sendMessage(
+        systemContext: _systemContext,
+        history: history,
+        userMessage: trimmed,
+      );
+      if (!mounted) return;
+      setState(() {
+        _messages.add(ChatMessage(
+          role: 'assistant',
+          text: reply,
+          timestamp: DateTime.now(),
+        ));
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _messages.add(ChatMessage(
+          role: 'error',
+          text: e.toString().replaceFirst('Exception: ', ''),
+          timestamp: DateTime.now(),
+        ));
+        _isLoading = false;
+      });
+    }
+    _scrollToBottom();
+  }
+
+  void _retryLastMessage() {
+    HapticFeedback.selectionClick();
+    int lastUserIdx = -1;
+    for (int i = _messages.length - 1; i >= 0; i--) {
+      if (_messages[i].role == 'user') {
+        lastUserIdx = i;
+        break;
+      }
+    }
+    if (lastUserIdx < 0) return;
+    final text = _messages[lastUserIdx].text;
+    setState(() => _messages.removeRange(lastUserIdx, _messages.length));
+    _sendMessage(text);
+  }
+
+  void _clearConversation() {
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _messages.clear();
+      _messages.add(ChatMessage(
+        role: 'assistant',
+        text: 'Hai Sobat! 👋 Ada yang bisa aku bantu soal keuanganmu hari ini?',
+        timestamp: DateTime.now(),
+      ));
+    });
+  }
+
+  bool get _showSuggestions => _messages.length == 1 && !_isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: _buildAppBar(),
+      body: Column(
+        children: [
+          if (!AiService.isConfigured) _buildApiKeyBanner(),
+          Expanded(child: _buildChatArea()),
+          _buildInputArea(),
+        ],
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return PreferredSize(
+      preferredSize: const Size.fromHeight(64),
+      child: Container(
+        color: AppColors.surface,
+        child: SafeArea(
+          bottom: false,
+          child: SizedBox(
+            height: 64,
+            child: Row(
+              children: [
+                IconButton(
+                  icon: Icon(
+                    Icons.arrow_back_rounded,
+                    color: AppColors.textPrimary,
+                  ),
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    Navigator.of(context).pop();
+                  },
+                ),
+                const SizedBox(width: 2),
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    gradient: AppColors.primaryGradient,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Sentra Brain',
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        'AI Financial Assistant',
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(
+                    Icons.refresh_rounded,
+                    color: AppColors.textSecondary,
+                  ),
+                  onPressed: _clearConversation,
+                  tooltip: 'Reset percakapan',
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildApiKeyBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      color: AppColors.warning.withAlpha(30),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.warning_amber_rounded,
+            color: AppColors.warning,
+            size: 16,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'API Key belum dikonfigurasi. Isi geminiApiKey di lib/env.dart',
+              style: const TextStyle(
+                color: AppColors.warning,
+                fontSize: 11,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChatArea() {
+    final items = <Widget>[];
+
+    for (int i = 0; i < _messages.length; i++) {
+      items.add(_buildBubble(_messages[i], i));
+      if (i == 0 && _showSuggestions) {
+        items.add(_buildSuggestions());
+      }
+    }
+
+    if (_isLoading) items.add(_buildTypingIndicator());
+
+    return ListView(
+      controller: _scrollController,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      children: items,
+    );
+  }
+
+  Widget _buildBubble(ChatMessage msg, int index) {
+    final isUser = msg.role == 'user';
+    final isError = msg.role == 'error';
+
+    return TweenAnimationBuilder<double>(
+      key: ValueKey(index),
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutCubic,
+      builder: (_, v, child) => Opacity(
+        opacity: v,
+        child: Transform.translate(
+          offset: Offset(0, 10 * (1 - v)),
+          child: child,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Align(
+          alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.78,
+            ),
+            child: Column(
+              crossAxisAlignment:
+                  isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isError
+                        ? AppColors.expense.withAlpha(30)
+                        : isUser
+                        ? AppColors.primary
+                        : AppColors.surfaceCard,
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(16),
+                      topRight: const Radius.circular(16),
+                      bottomLeft: Radius.circular(isUser ? 16 : 4),
+                      bottomRight: Radius.circular(isUser ? 4 : 16),
+                    ),
+                    border: isError
+                        ? Border.all(color: AppColors.expense.withAlpha(60))
+                        : null,
+                  ),
+                  child: isError
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.error_outline_rounded,
+                                  color: AppColors.expense,
+                                  size: 14,
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    msg.text,
+                                    style: const TextStyle(
+                                      color: AppColors.expense,
+                                      fontSize: 13,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            GestureDetector(
+                              onTap: _retryLastMessage,
+                              child: Text(
+                                'Coba lagi →',
+                                style: TextStyle(
+                                  color: AppColors.info,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          msg.text,
+                          style: TextStyle(
+                            color: isUser
+                                ? Colors.white
+                                : AppColors.textPrimary,
+                            fontSize: 14,
+                            height: 1.5,
+                          ),
+                        ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  _formatTime(msg.timestamp),
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 10),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTypingIndicator() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceCard,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(16),
+              topRight: Radius.circular(16),
+              bottomLeft: Radius.circular(4),
+              bottomRight: Radius.circular(16),
+            ),
+          ),
+          child: const _TypingDots(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSuggestions() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: _suggestions.asMap().entries.map((entry) {
+            return TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: Duration(milliseconds: 250 + entry.key * 60),
+              curve: Curves.easeOut,
+              builder: (_, v, child) =>
+                  Opacity(opacity: v, child: child),
+              child: Padding(
+                padding: EdgeInsets.only(
+                  right: 8,
+                  left: entry.key == 0 ? 0 : 0,
+                ),
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    _sendMessage(entry.value);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withAlpha(20),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: AppColors.primary.withAlpha(50),
+                      ),
+                    ),
+                    child: Text(
+                      entry.value,
+                      style: TextStyle(
+                        color: AppColors.primaryLight,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInputArea() {
+    return Container(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 12,
+        bottom: MediaQuery.of(context).padding.bottom + 12,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.surfaceBorder)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.surfaceCard,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: AppColors.surfaceBorder),
+              ),
+              child: TextField(
+                controller: _controller,
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 14,
+                ),
+                maxLines: 4,
+                minLines: 1,
+                textInputAction: TextInputAction.send,
+                onSubmitted: _sendMessage,
+                decoration: InputDecoration(
+                  hintText: 'Tanya apa saja...',
+                  hintStyle: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 14,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          _buildSendButton(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSendButton() {
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: _controller,
+      builder: (_, value, child) {
+        final canSend = value.text.trim().isNotEmpty && !_isLoading;
+        return GestureDetector(
+          onTap: canSend ? () => _sendMessage(_controller.text) : null,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: canSend ? AppColors.primaryGradient : null,
+              color: canSend ? null : AppColors.surfaceElevated,
+            ),
+            child: Icon(
+              Icons.arrow_upward_rounded,
+              color: canSend ? Colors.white : AppColors.textMuted,
+              size: 20,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _formatTime(DateTime dt) {
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    return '$h:$m';
+  }
+}
+
+class _TypingDots extends StatefulWidget {
+  const _TypingDots();
+
+  @override
+  State<_TypingDots> createState() => _TypingDotsState();
+}
+
+class _TypingDotsState extends State<_TypingDots>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _anim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _anim.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(3, (i) {
+        return AnimatedBuilder(
+          animation: _anim,
+          builder: (_, child) {
+            final raw = (_anim.value - i * 0.22).clamp(0.0, 1.0);
+            final bounce = raw < 0.5 ? raw * 2 : (1 - raw) * 2;
+            return Container(
+              margin: EdgeInsets.only(right: i < 2 ? 5 : 0),
+              child: Transform.translate(
+                offset: Offset(0, -5 * bounce),
+                child: Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      }),
+    );
+  }
+}
