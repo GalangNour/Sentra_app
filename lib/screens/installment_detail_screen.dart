@@ -93,6 +93,31 @@ class _InstallmentDetailScreenState extends State<InstallmentDetailScreen> {
     );
   }
 
+  Future<void> _deletePlan() async {
+    HapticFeedback.mediumImpact();
+    final option = await showDialog<_DeleteOption>(
+      context: context,
+      builder: (_) => _DeleteConfirmDialog(
+        planName: _plan.name,
+        paymentCount: _payments.length,
+        paidAmount: _paid,
+      ),
+    );
+    if (option == null || !mounted) return;
+
+    if (option == _DeleteOption.planAndPayments) {
+      if (!mounted) return;
+      await context
+          .read<TransactionsCubit>()
+          .deleteTransactionsByPlanId(_plan.id);
+    }
+    if (!mounted) return;
+    await context.read<InstallmentsCubit>().deleteInstallmentPlan(_plan.id);
+
+    if (!mounted) return;
+    Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     _snapshot = _watchSnapshot();
@@ -169,6 +194,11 @@ class _InstallmentDetailScreenState extends State<InstallmentDetailScreen> {
                 : Icons.visibility_rounded,
             color: AppColors.textSecondary,
           ),
+        ),
+        IconButton(
+          tooltip: 'Hapus cicilan',
+          onPressed: _deletePlan,
+          icon: const Icon(Icons.delete_outline_rounded, color: AppColors.expense),
         ),
         if (!_isPaidOff)
           GestureDetector(
@@ -546,4 +576,295 @@ class _InstallmentDetailScreenState extends State<InstallmentDetailScreen> {
 
   Widget _divider() =>
       Divider(color: AppColors.surfaceBorder, height: 16, thickness: 1);
+}
+
+// ─── Delete dialog ─────────────────────────────────────
+
+enum _DeleteOption { planOnly, planAndPayments }
+
+class _DeleteConfirmDialog extends StatefulWidget {
+  final String planName;
+  final int paymentCount;
+  final double paidAmount;
+
+  const _DeleteConfirmDialog({
+    required this.planName,
+    required this.paymentCount,
+    required this.paidAmount,
+  });
+
+  @override
+  State<_DeleteConfirmDialog> createState() => _DeleteConfirmDialogState();
+}
+
+class _DeleteConfirmDialogState extends State<_DeleteConfirmDialog> {
+  _DeleteOption _selected = _DeleteOption.planOnly;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasPayments = widget.paymentCount > 0;
+
+    return Dialog(
+      backgroundColor: AppColors.surfaceCard,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.expense.withAlpha(20),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: AppColors.expense,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Hapus Cicilan',
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        widget.planName,
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 12,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            if (hasPayments) ...[
+              const SizedBox(height: 20),
+              // Info about payments
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceElevated,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${widget.paymentCount} pembayaran tercatat · total ${Fmt.compact(widget.paidAmount)}',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Pilih cara menghapus:',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Option 1: plan only
+              _optionTile(
+                value: _DeleteOption.planOnly,
+                title: 'Hapus plan saja',
+                subtitle:
+                    'Pembayaran tetap tercatat sebagai pengeluaran biasa. Saldo tidak berubah.',
+                icon: Icons.layers_clear_rounded,
+                iconColor: AppColors.warning,
+              ),
+              const SizedBox(height: 8),
+              // Option 2: plan + payments
+              _optionTile(
+                value: _DeleteOption.planAndPayments,
+                title: 'Hapus plan + semua pembayaran',
+                subtitle:
+                    'Saldo akan naik ${Fmt.compact(widget.paidAmount)} karena ${widget.paymentCount} transaksi dihapus.',
+                icon: Icons.warning_amber_rounded,
+                iconColor: AppColors.expense,
+                isWarning: true,
+              ),
+            ] else ...[
+              const SizedBox(height: 16),
+              Text(
+                'Belum ada pembayaran yang tercatat. Plan ini akan dihapus permanen.',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                  height: 1.5,
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 24),
+            // Buttons
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceElevated,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Batal',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => Navigator.of(context).pop(
+                      hasPayments ? _selected : _DeleteOption.planOnly,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      decoration: BoxDecoration(
+                        color: AppColors.expense.withAlpha(220),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Hapus',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _optionTile({
+    required _DeleteOption value,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color iconColor,
+    bool isWarning = false,
+  }) {
+    final selected = _selected == value;
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _selected = value);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: selected
+              ? iconColor.withAlpha(15)
+              : AppColors.surfaceElevated,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? iconColor.withAlpha(120) : AppColors.surfaceBorder,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: iconColor.withAlpha(20),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: iconColor, size: 16),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: isWarning && selected
+                          ? AppColors.expense
+                          : AppColors.textMuted,
+                      fontSize: 12,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 18,
+              height: 18,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: selected ? iconColor : AppColors.surfaceBorder,
+                  width: 2,
+                ),
+                color: selected ? iconColor : Colors.transparent,
+              ),
+              child: selected
+                  ? const Icon(Icons.check, size: 11, color: Colors.white)
+                  : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

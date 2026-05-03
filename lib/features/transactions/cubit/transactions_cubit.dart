@@ -35,6 +35,20 @@ class TransactionsCubit extends Cubit<TransactionsState> {
     );
   }
 
+  Future<void> deleteTransactionsByPlanId(String planId) async {
+    final toDelete = state.transactions
+        .where((tx) => tx.installmentPlanId == planId)
+        .toList();
+    for (final tx in toDelete) {
+      await _repository.delete(tx.id);
+    }
+    emit(state.copyWith(
+      transactions: state.transactions
+          .where((tx) => tx.installmentPlanId != planId)
+          .toList(),
+    ));
+  }
+
   Future<void> clearAllTransactions() async {
     await _repository.clear();
     emit(state.copyWith(transactions: const []));

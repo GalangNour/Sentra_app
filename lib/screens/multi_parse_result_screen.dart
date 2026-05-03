@@ -27,7 +27,13 @@ class _MultiParseResultScreenState extends State<MultiParseResultScreen> {
     _items = widget.transactions.map(_EditableItem.new).toList();
   }
 
-  double get _totalAmount => _items.fold(0, (sum, i) => sum + i.tx.amount);
+  double get _totalIncome => _items
+      .where((i) => i.tx.type == TransactionType.income)
+      .fold(0, (sum, i) => sum + i.tx.amount);
+
+  double get _totalExpense => _items
+      .where((i) => i.tx.type == TransactionType.expense)
+      .fold(0, (sum, i) => sum + i.tx.amount);
 
   Future<void> _edit(int index) async {
     HapticFeedback.selectionClick();
@@ -87,9 +93,12 @@ class _MultiParseResultScreenState extends State<MultiParseResultScreen> {
             _buildHeader(),
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                itemCount: _items.length,
-                itemBuilder: (_, i) => _buildCard(i),
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
+                itemCount: _items.length + 1,
+                itemBuilder: (_, i) {
+                  if (i == _items.length) return _buildSwipeHint();
+                  return _buildCard(i);
+                },
               ),
             ),
             _buildSummaryAndSave(),
@@ -101,7 +110,7 @@ class _MultiParseResultScreenState extends State<MultiParseResultScreen> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 12, 20, 8),
+      padding: const EdgeInsets.fromLTRB(8, 12, 16, 8),
       child: Row(
         children: [
           IconButton(
@@ -124,18 +133,42 @@ class _MultiParseResultScreenState extends State<MultiParseResultScreen> {
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
             decoration: BoxDecoration(
               color: AppColors.primary.withAlpha(30),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              '${_items.length} transaksi',
+              '${_items.length}x',
               style: TextStyle(
                 color: AppColors.primaryLight,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              gradient: AppColors.primaryGradient,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 12),
+                SizedBox(width: 4),
+                Text(
+                  'AI',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -305,9 +338,28 @@ class _MultiParseResultScreenState extends State<MultiParseResultScreen> {
     );
   }
 
+  Widget _buildSwipeHint() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 4, 0, 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.swipe_left_rounded, color: AppColors.textMuted, size: 14),
+          const SizedBox(width: 6),
+          Text(
+            'Geser kiri untuk hapus • Ketuk untuk edit',
+            style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSummaryAndSave() {
+    final hasIncome = _totalIncome > 0;
+    final hasExpense = _totalExpense > 0;
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
       decoration: BoxDecoration(
         color: AppColors.surface,
         border: Border(top: BorderSide(color: AppColors.surfaceBorder)),
@@ -316,23 +368,31 @@ class _MultiParseResultScreenState extends State<MultiParseResultScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Total ${_items.length} transaksi',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 12),
-              ),
-              Text(
-                Fmt.full(_totalAmount),
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
+              if (hasIncome) ...[
+                _summaryPill(
+                  icon: Icons.arrow_downward_rounded,
+                  label: Fmt.compact(_totalIncome),
+                  color: AppColors.income,
                 ),
+                const SizedBox(width: 8),
+              ],
+              if (hasExpense) ...[
+                _summaryPill(
+                  icon: Icons.arrow_upward_rounded,
+                  label: Fmt.compact(_totalExpense),
+                  color: AppColors.expense,
+                ),
+                const SizedBox(width: 8),
+              ],
+              const Spacer(),
+              Text(
+                '${_items.length} transaksi',
+                style: TextStyle(color: AppColors.textMuted, fontSize: 12),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           GestureDetector(
             onTap: _saveAll,
             child: Container(
@@ -352,11 +412,7 @@ class _MultiParseResultScreenState extends State<MultiParseResultScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
-                    Icons.check_rounded,
-                    color: Colors.white,
-                    size: 18,
-                  ),
+                  const Icon(Icons.check_rounded, color: Colors.white, size: 18),
                   const SizedBox(width: 8),
                   Text(
                     'Simpan Semua (${_items.length})',
@@ -368,6 +424,36 @@ class _MultiParseResultScreenState extends State<MultiParseResultScreen> {
                   ),
                 ],
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryPill({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withAlpha(25),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withAlpha(70)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 12),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],

@@ -66,6 +66,13 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
 
   bool get _canSave => _titleCtrl.text.trim().isNotEmpty && _parsedAmount > 0;
 
+  Color get _typeColor =>
+      _type == TransactionType.expense ? AppColors.expense : AppColors.income;
+
+  LinearGradient get _typeGradient => _type == TransactionType.expense
+      ? AppColors.expenseGradient
+      : AppColors.incomeGradient;
+
   Future<void> _pickDate() async {
     HapticFeedback.selectionClick();
     final picked = await showDatePicker(
@@ -103,7 +110,6 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
     await context.read<TransactionsCubit>().addTransaction(tx);
     if (!mounted) return;
 
-    // Show brief success snackbar before popping
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Transaksi disimpan'),
@@ -114,7 +120,6 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
       ),
     );
 
-    // Pop back to home
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
@@ -144,15 +149,11 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
                     const SizedBox(height: 16),
                     _buildAmountField(),
                     const SizedBox(height: 16),
-                    _buildTitleField(),
-                    const SizedBox(height: 16),
-                    _buildCategoryLabel(),
+                    _buildDetailsCard(),
+                    const SizedBox(height: 20),
+                    _sectionLabel('Kategori'),
                     const SizedBox(height: 10),
                     _buildCategoryGrid(),
-                    const SizedBox(height: 16),
-                    _buildNoteField(),
-                    const SizedBox(height: 16),
-                    _buildDateRow(),
                     const SizedBox(height: 100),
                   ],
                 ),
@@ -167,7 +168,7 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 12, 20, 12),
+      padding: const EdgeInsets.fromLTRB(8, 12, 16, 12),
       child: Row(
         children: [
           IconButton(
@@ -179,12 +180,41 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
             ),
           ),
           const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              'Konfirmasi Transaksi',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          _aiBadge(),
+        ],
+      ),
+    );
+  }
+
+  Widget _aiBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        gradient: AppColors.primaryGradient,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 12),
+          SizedBox(width: 4),
           Text(
-            'Konfirmasi Transaksi',
+            'AI',
             style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 20,
+              color: Colors.white,
+              fontSize: 11,
               fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
             ),
           ),
         ],
@@ -195,26 +225,44 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
   Widget _buildInputBubble() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surfaceCard,
+        color: AppColors.primary.withAlpha(12),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.surfaceBorder),
+        border: Border(
+          left: BorderSide(color: AppColors.primary, width: 3),
+          top: BorderSide(color: AppColors.primary.withAlpha(40)),
+          right: BorderSide(color: AppColors.primary.withAlpha(40)),
+          bottom: BorderSide(color: AppColors.primary.withAlpha(40)),
+        ),
       ),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.format_quote_rounded, color: AppColors.primary, size: 18),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              widget.parsed.rawInput,
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-                fontStyle: FontStyle.italic,
-                height: 1.4,
+          Row(
+            children: [
+              Icon(Icons.format_quote_rounded,
+                  color: AppColors.primary, size: 14),
+              const SizedBox(width: 6),
+              Text(
+                'Teks input',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.4,
+                ),
               ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            widget.parsed.rawInput,
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+              fontStyle: FontStyle.italic,
+              height: 1.4,
             ),
           ),
         ],
@@ -287,10 +335,13 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.symmetric(vertical: 11),
           decoration: BoxDecoration(
-            color: selected ? color.withAlpha(38) : Colors.transparent,
+            color: selected ? color.withAlpha(50) : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
+            border: selected
+                ? Border.all(color: color.withAlpha(100))
+                : null,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -306,7 +357,7 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
                 style: TextStyle(
                   color: selected ? color : AppColors.textMuted,
                   fontSize: 13,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),
             ],
@@ -317,92 +368,221 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
   }
 
   Widget _buildAmountField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _fieldLabel('Nominal'),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.surfaceCard,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.surfaceBorder),
+    final color = _typeColor;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      decoration: BoxDecoration(
+        color: color.withAlpha(12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withAlpha(100), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: color.withAlpha(30),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Row(
-            children: [
-              Text(
-                'Rp',
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            'Rp',
+            style: TextStyle(
+              color: color.withAlpha(180),
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: _amountCtrl,
+              keyboardType: TextInputType.number,
+              inputFormatters: [ThousandsSeparatorFormatter()],
+              style: TextStyle(
+                color: color,
+                fontSize: 32,
+                fontWeight: FontWeight.w800,
+              ),
+              decoration: InputDecoration(
+                hintText: '0',
+                hintStyle: TextStyle(
+                  color: color.withAlpha(80),
+                  fontSize: 32,
+                  fontWeight: FontWeight.w800,
+                ),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailsCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.surfaceBorder),
+      ),
+      child: Column(
+        children: [
+          _inlineTextField(
+            label: 'Keterangan',
+            controller: _titleCtrl,
+            hint: 'Nama transaksi...',
+            isFirst: true,
+          ),
+          Divider(height: 1, color: AppColors.surfaceBorder),
+          _inlineDateRow(),
+          Divider(height: 1, color: AppColors.surfaceBorder),
+          _inlineNoteField(),
+        ],
+      ),
+    );
+  }
+
+  Widget _inlineTextField({
+    required String label,
+    required TextEditingController controller,
+    required String hint,
+    bool isFirst = false,
+    bool isLast = false,
+  }) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        16,
+        isFirst ? 14 : 10,
+        16,
+        isLast ? 14 : 10,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 96,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+              decoration: InputDecoration(
+                hintText: hint,
+                hintStyle:
+                    TextStyle(color: AppColors.textMuted, fontSize: 14),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _inlineDateRow() {
+    return GestureDetector(
+      onTap: _pickDate,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 96,
+              child: Text(
+                'Tanggal',
                 style: TextStyle(
                   color: AppColors.textMuted,
-                  fontSize: 18,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                Fmt.date(_date),
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TextField(
-                  controller: _amountCtrl,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [ThousandsSeparatorFormatter()],
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: '0',
-                    hintStyle: TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                    ),
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  onChanged: (_) => setState(() {}),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textMuted,
+              size: 18,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _inlineNoteField() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 96,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                'Catatan',
+                style: TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTitleField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _fieldLabel('Keterangan'),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.surfaceCard,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.surfaceBorder),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: TextField(
-            controller: _titleCtrl,
-            style: TextStyle(color: AppColors.textPrimary, fontSize: 15),
-            decoration: InputDecoration(
-              hintText: 'Nama transaksi...',
-              hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 15),
-              border: InputBorder.none,
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(vertical: 12),
             ),
-            onChanged: (_) => setState(() {}),
           ),
-        ),
-      ],
+          Expanded(
+            child: TextField(
+              controller: _noteCtrl,
+              maxLines: 2,
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Tambahkan catatan...',
+                hintStyle:
+                    TextStyle(color: AppColors.textMuted, fontSize: 14),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
-  }
-
-  Widget _buildCategoryLabel() {
-    return _fieldLabel('Kategori');
   }
 
   Widget _buildCategoryGrid() {
@@ -433,12 +613,11 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
             duration: const Duration(milliseconds: 180),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: selected ? color.withAlpha(38) : AppColors.surfaceCard,
+              color: selected ? color.withAlpha(45) : AppColors.surfaceCard,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: selected
-                    ? color.withAlpha(120)
-                    : AppColors.surfaceBorder,
+                color: selected ? color.withAlpha(130) : AppColors.surfaceBorder,
+                width: selected ? 1.5 : 1,
               ),
             ),
             child: Row(
@@ -455,7 +634,8 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
                   style: TextStyle(
                     color: selected ? color : AppColors.textSecondary,
                     fontSize: 12,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                    fontWeight:
+                        selected ? FontWeight.w700 : FontWeight.w400,
                   ),
                 ),
               ],
@@ -466,124 +646,90 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
     );
   }
 
-  Widget _buildNoteField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _fieldLabel('Catatan (opsional)'),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.surfaceCard,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.surfaceBorder),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: TextField(
-            controller: _noteCtrl,
-            maxLines: 2,
-            style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
-            decoration: InputDecoration(
-              hintText: 'Tambahkan catatan...',
-              hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 14),
-              border: InputBorder.none,
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(vertical: 10),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDateRow() {
-    return GestureDetector(
-      onTap: _pickDate,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceCard,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.surfaceBorder),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              Icons.calendar_today_rounded,
-              color: AppColors.primary,
-              size: 18,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                Fmt.date(_date),
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: AppColors.textMuted,
-              size: 18,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildSaveButton() {
     final active = _canSave;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-      child: GestureDetector(
-        onTap: active ? _save : null,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          decoration: BoxDecoration(
-            gradient: active ? AppColors.primaryGradient : null,
-            color: active ? null : AppColors.surfaceCard,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: active
-                ? [
-                    BoxShadow(
-                      color: AppColors.primary.withAlpha(90),
-                      blurRadius: 20,
-                      offset: const Offset(0, 6),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.check_rounded,
-                color: active ? Colors.white : AppColors.textMuted,
-                size: 18,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Simpan Transaksi',
-                style: TextStyle(
-                  color: active ? Colors.white : AppColors.textMuted,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
+    final color = _typeColor;
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.surfaceBorder)),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (active) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
                 ),
+                const SizedBox(width: 8),
+                Text(
+                  '${_type == TransactionType.expense ? 'Pengeluaran' : 'Pemasukan'} • ${Fmt.full(_parsedAmount)}',
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+          ],
+          GestureDetector(
+            onTap: active ? _save : null,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              decoration: BoxDecoration(
+                gradient: active ? _typeGradient : null,
+                color: active ? null : AppColors.surfaceCard,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: active
+                    ? [
+                        BoxShadow(
+                          color: color.withAlpha(90),
+                          blurRadius: 20,
+                          offset: const Offset(0, 6),
+                        ),
+                      ]
+                    : null,
               ),
-            ],
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.check_rounded,
+                    color: active ? Colors.white : AppColors.textMuted,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Simpan Transaksi',
+                    style: TextStyle(
+                      color: active ? Colors.white : AppColors.textMuted,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  Widget _fieldLabel(String text) {
+  Widget _sectionLabel(String text) {
     return Text(
       text,
       style: TextStyle(
