@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:sentra_app/core/models/installment_plan.dart';
 import 'package:sentra_app/core/services/finance_snapshot.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/widgets/focus_field_wrapper.dart';
@@ -11,7 +12,9 @@ import 'package:sentra_app/features/settings/cubit/settings_cubit.dart';
 import 'package:sentra_app/features/transactions/cubit/transactions_cubit.dart';
 
 class AddInstallmentScreen extends StatefulWidget {
-  const AddInstallmentScreen({super.key});
+  final InstallmentPlan? editPlan;
+
+  const AddInstallmentScreen({super.key, this.editPlan});
 
   @override
   State<AddInstallmentScreen> createState() => _AddInstallmentScreenState();
@@ -22,6 +25,25 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
   final _amountCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
   late FinanceSnapshot _snapshot;
+
+  bool get _isEdit => widget.editPlan != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final plan = widget.editPlan;
+    if (plan != null) {
+      _nameCtrl.text = plan.name;
+      _noteCtrl.text = plan.note ?? '';
+      final formatted = plan.totalAmount
+          .toStringAsFixed(0)
+          .replaceAllMapped(
+            RegExp(r'(\d)(?=(\d{3})+$)'),
+            (m) => '${m[1]}.',
+          );
+      _amountCtrl.text = formatted;
+    }
+  }
 
   FinanceSnapshot _readSnapshot() {
     return FinanceSnapshot(
@@ -62,11 +84,22 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
       return;
     }
 
-    await context.read<InstallmentsCubit>().addInstallmentPlan(
-      name: _nameCtrl.text.trim(),
-      totalAmount: amount,
-      note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
-    );
+    final cubit = context.read<InstallmentsCubit>();
+    final noteTrimmed = _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim();
+    if (_isEdit) {
+      await cubit.editInstallmentPlan(
+        id: widget.editPlan!.id,
+        name: _nameCtrl.text.trim(),
+        totalAmount: amount,
+        note: noteTrimmed,
+      );
+    } else {
+      await cubit.addInstallmentPlan(
+        name: _nameCtrl.text.trim(),
+        totalAmount: amount,
+        note: noteTrimmed,
+      );
+    }
 
     HapticFeedback.mediumImpact();
     if (mounted) Navigator.of(context).pop(true);
@@ -94,7 +127,7 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
             ),
           ),
         ),
-        title: const Text('Tambah Cicilan'),
+        title: Text(_isEdit ? 'Edit Cicilan' : 'Tambah Cicilan'),
         actions: [
           TextButton(
             onPressed: _save,
@@ -148,7 +181,7 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
                         child: TextField(
                           controller: _amountCtrl,
                           keyboardType: TextInputType.number,
-                          autofocus: true,
+                          autofocus: !_isEdit,
                           inputFormatters: [ThousandsSeparatorFormatter()],
                           style: TextStyle(
                             color: AppColors.primaryLight,

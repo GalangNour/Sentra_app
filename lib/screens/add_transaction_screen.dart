@@ -139,14 +139,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Color get _typeColor =>
       _type == TransactionType.expense ? AppColors.expense : AppColors.income;
 
-  List<InstallmentPlan> get _availableInstallments {
-    final plans = _snapshot.activeInstallmentPlans.toList();
-    final current = _snapshot.installmentById(_installmentPlanId);
-    if (current != null && !plans.any((plan) => plan.id == current.id)) {
-      plans.insert(0, current);
-    }
-    return plans;
-  }
+  bool get _isInstallmentMode => widget.initialInstallmentPlanId != null;
 
   double _selectedInstallmentRemaining({String? excludingTransactionId}) {
     final planId = _installmentPlanId;
@@ -169,10 +162,16 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     final amount = double.tryParse(
       _amountCtrl.text.replaceAll('.', '').replaceAll(',', ''),
     );
-    if (_titleCtrl.text.trim().isEmpty || amount == null || amount <= 0) {
+    if ((!_isInstallmentMode && _titleCtrl.text.trim().isEmpty) ||
+        amount == null ||
+        amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Isi nama dan jumlah transaksi'),
+          content: Text(
+            _isInstallmentMode
+                ? 'Isi jumlah pembayaran'
+                : 'Isi nama dan jumlah transaksi',
+          ),
           backgroundColor: AppColors.surfaceElevated,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -183,6 +182,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       );
       return;
     }
+
+    final titleText = _isInstallmentMode
+        ? (_snapshot.installmentById(_installmentPlanId!)?.name ??
+            'Pembayaran Cicilan')
+        : _titleCtrl.text.trim();
 
     final edit = widget.editTransaction;
     if (_type == TransactionType.expense && _installmentPlanId != null) {
@@ -209,7 +213,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
     final tx = Transaction(
       id: edit?.id ?? _uuid.v4(),
-      title: _titleCtrl.text.trim(),
+      title: titleText,
       amount: amount,
       type: _type,
       category: _category,
@@ -303,8 +307,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               _buildScanBanner(),
               const SizedBox(height: 16),
             ],
-            _buildTypeSelector(),
-            const SizedBox(height: 20),
+            if (!_isInstallmentMode) ...[
+              _buildTypeSelector(),
+              const SizedBox(height: 20),
+            ],
             _buildAmountInput(),
             if ((widget.scanData?.candidateAmounts ?? []).isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -312,12 +318,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             ],
             const SizedBox(height: 20),
             _buildDetailsCard(),
-            if (_type == TransactionType.expense) ...[
+            if (_isInstallmentMode) ...[
               const SizedBox(height: 20),
-              _buildInstallmentPicker(),
+              _buildInstallmentInfoCard(),
             ],
-            const SizedBox(height: 20),
-            _buildCategoryPicker(),
+            if (!_isInstallmentMode) ...[
+              const SizedBox(height: 20),
+              _buildCategoryPicker(),
+            ],
             if (widget.scanData?.rawText != null &&
                 widget.scanData!.rawText!.isNotEmpty) ...[
               const SizedBox(height: 16),
@@ -782,21 +790,23 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildStyledField(
-          controller: _titleCtrl,
-          label: 'Nama Transaksi',
-          hint: 'Contoh: Makan siang, Gaji...',
-          icon: Icons.receipt_long_rounded,
-          focusColor: _typeColor,
-        ),
-        AnimatedSize(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOutCubic,
-          child: _showSuggestions
-              ? _buildSuggestionList()
-              : const SizedBox.shrink(),
-        ),
-        const SizedBox(height: 12),
+        if (!_isInstallmentMode) ...[
+          _buildStyledField(
+            controller: _titleCtrl,
+            label: 'Nama Transaksi',
+            hint: 'Contoh: Makan siang, Gaji...',
+            icon: Icons.receipt_long_rounded,
+            focusColor: _typeColor,
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            child: _showSuggestions
+                ? _buildSuggestionList()
+                : const SizedBox.shrink(),
+          ),
+          const SizedBox(height: 12),
+        ],
         _buildDateRow(),
         const SizedBox(height: 12),
         _buildStyledField(
@@ -812,176 +822,61 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
-  Widget _buildInstallmentPicker() {
-    final plans = _availableInstallments;
-    final selectedPlan = _snapshot.installmentById(_installmentPlanId);
-    final remaining = selectedPlan == null
-        ? 0.0
-        : _selectedInstallmentRemaining(
-            excludingTransactionId: widget.editTransaction?.id,
-          );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Pembayaran Cicilan',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
+  Widget _buildInstallmentInfoCard() {
+    final plan = _snapshot.installmentById(_installmentPlanId!);
+    if (plan == null) return const SizedBox.shrink();
+    final remaining = _selectedInstallmentRemaining(
+      excludingTransactionId: widget.editTransaction?.id,
+    );
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withAlpha(12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.warning.withAlpha(70)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.warning.withAlpha(20),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.account_balance_wallet_rounded,
+              color: AppColors.warning,
+              size: 20,
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceCard,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.surfaceBorder),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              InkWell(
-                onTap: () {
-                  setState(() => _installmentPlanId = null);
-                  HapticFeedback.selectionClick();
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: _installmentPlanId == null
-                        ? AppColors.primary.withAlpha(18)
-                        : AppColors.surfaceElevated,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: _installmentPlanId == null
-                          ? AppColors.primary.withAlpha(90)
-                          : AppColors.surfaceBorder,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.do_not_disturb_on_outlined,
-                        color: _installmentPlanId == null
-                            ? AppColors.primaryLight
-                            : AppColors.textMuted,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Bukan pembayaran cicilan',
-                          style: TextStyle(
-                            color: _installmentPlanId == null
-                                ? AppColors.primaryLight
-                                : AppColors.textSecondary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  plan.name,
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              ),
-              if (plans.isEmpty) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 3),
                 Text(
-                  'Belum ada cicilan aktif. Tambahkan cicilan dari beranda terlebih dulu.',
+                  'Sisa cicilan ${Fmt.full(remaining)}',
                   style: TextStyle(
                     color: AppColors.textMuted,
                     fontSize: 12,
-                    height: 1.5,
-                  ),
-                ),
-              ] else ...[
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: plans.map((plan) {
-                    final selected = _installmentPlanId == plan.id;
-                    final planRemaining = selected
-                        ? remaining
-                        : _snapshot.installmentRemaining(plan.id);
-                    return GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _installmentPlanId = plan.id;
-                          _category = TransactionCategory.bills;
-                          _customCategoryId = null;
-                        });
-                        HapticFeedback.selectionClick();
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? AppColors.warning.withAlpha(20)
-                              : AppColors.surfaceElevated,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: selected
-                                ? AppColors.warning
-                                : AppColors.surfaceBorder,
-                            width: selected ? 1.4 : 1,
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              plan.name,
-                              style: TextStyle(
-                                color: selected
-                                    ? AppColors.warning
-                                    : AppColors.textPrimary,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Sisa ${Fmt.full(planRemaining)}',
-                              style: TextStyle(
-                                color: selected
-                                    ? AppColors.warning
-                                    : AppColors.textSecondary,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-              if (selectedPlan != null) ...[
-                const SizedBox(height: 14),
-                Text(
-                  'Pembayaran ini akan mengurangi sisa cicilan ${selectedPlan.name} menjadi ${Fmt.full((remaining - (double.tryParse(_amountCtrl.text.replaceAll('.', '').replaceAll(',', '')) ?? 0)).clamp(0, remaining).toDouble())}.',
-                  style: TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 12,
-                    height: 1.5,
                   ),
                 ),
               ],
-            ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

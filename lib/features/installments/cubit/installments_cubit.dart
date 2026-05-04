@@ -31,6 +31,26 @@ class InstallmentsCubit extends Cubit<InstallmentsState> {
     return plan;
   }
 
+  Future<void> editInstallmentPlan({
+    required String id,
+    required String name,
+    required double totalAmount,
+    String? note,
+  }) async {
+    final existing = state.installmentPlans.firstWhere((p) => p.id == id);
+    final updated = existing.copyWith(
+      name: name,
+      totalAmount: totalAmount,
+      note: note,
+    );
+    await _repository.save(updated);
+    final plans = state.installmentPlans
+        .map((p) => p.id == id ? updated : p)
+        .toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    emit(state.copyWith(installmentPlans: plans));
+  }
+
   Future<void> deleteInstallmentPlan(String id) async {
     await _repository.delete(id);
     emit(

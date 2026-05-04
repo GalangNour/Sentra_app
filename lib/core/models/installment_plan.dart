@@ -28,4 +28,16 @@ class InstallmentPlan {
     createdAt: DateTime.parse(m['createdAt'] as String),
     note: m['note'] as String?,
   );
+
+  InstallmentPlan copyWith({
+    String? name,
+    double? totalAmount,
+    String? note,
+  }) => InstallmentPlan(
+    id: id,
+    name: name ?? this.name,
+    totalAmount: totalAmount ?? this.totalAmount,
+    createdAt: createdAt,
+    note: note,
+  );
 }

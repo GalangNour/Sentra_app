@@ -8,6 +8,7 @@ import 'package:sentra_app/features/categories/cubit/categories_cubit.dart';
 import 'package:sentra_app/features/installments/cubit/installments_cubit.dart';
 import 'package:sentra_app/features/settings/cubit/settings_cubit.dart';
 import 'package:sentra_app/features/transactions/cubit/transactions_cubit.dart';
+import 'package:sentra_app/screens/add_installment_screen.dart';
 import 'package:sentra_app/screens/add_transaction_screen.dart';
 import 'package:sentra_app/screens/transaction_detail_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -74,6 +75,7 @@ class _InstallmentDetailScreenState extends State<InstallmentDetailScreen> {
   }
 
   Future<void> _openAddPayment() async {
+    if (_isPaidOff) return;
     HapticFeedback.selectionClick();
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -89,6 +91,15 @@ class _InstallmentDetailScreenState extends State<InstallmentDetailScreen> {
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => TransactionDetailScreen(transaction: tx),
+      ),
+    );
+  }
+
+  Future<void> _editPlan() async {
+    HapticFeedback.selectionClick();
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AddInstallmentScreen(editPlan: _plan),
       ),
     );
   }
@@ -194,6 +205,11 @@ class _InstallmentDetailScreenState extends State<InstallmentDetailScreen> {
                 : Icons.visibility_rounded,
             color: AppColors.textSecondary,
           ),
+        ),
+        IconButton(
+          tooltip: 'Edit cicilan',
+          onPressed: _editPlan,
+          icon: Icon(Icons.edit_outlined, color: AppColors.textSecondary),
         ),
         IconButton(
           tooltip: 'Hapus cicilan',
