@@ -659,6 +659,24 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             if (_type == TransactionType.income) {
               _installmentPlanId = null;
             }
+            // Reset category if it doesn't belong to the new type
+            final validBuiltin = CategoryMeta.forType(_type);
+            if (_customCategoryId != null) {
+              final matchingCc = _snapshot.customCategories
+                  .where((c) => c.id == _customCategoryId)
+                  .toList();
+              final cc = matchingCc.isEmpty ? null : matchingCc.first;
+              if (cc == null || cc.type != _type) {
+                _customCategoryId = null;
+                _category = _type == TransactionType.income
+                    ? TransactionCategory.salary
+                    : TransactionCategory.food;
+              }
+            } else if (!validBuiltin.contains(_category)) {
+              _category = _type == TransactionType.income
+                  ? TransactionCategory.salary
+                  : TransactionCategory.food;
+            }
           });
           HapticFeedback.selectionClick();
         },
@@ -1123,7 +1141,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           spacing: 8,
           runSpacing: 8,
           children: [
-            ...TransactionCategory.values.map((c) {
+            ...CategoryMeta.forType(_type).map((c) {
               final sel = _customCategoryId == null && c == _category;
               final color = CategoryMeta.color(c);
               return _catChip(
@@ -1137,7 +1155,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 }),
               );
             }),
-            ..._snapshot.customCategories.map((cc) {
+            ..._snapshot.customCategories
+                .where((cc) => cc.type == _type)
+                .map((cc) {
               final sel = _customCategoryId == cc.id;
               return _catChip(
                 label: cc.name,

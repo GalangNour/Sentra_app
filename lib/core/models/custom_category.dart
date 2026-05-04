@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sentra_app/core/models/transaction.dart';
 
 class CustomCategory {
   final String id;
@@ -6,6 +7,7 @@ class CustomCategory {
   final int iconCode;
   final String fontFamily;
   final int colorValue;
+  final TransactionType type;
 
   const CustomCategory({
     required this.id,
@@ -13,6 +15,7 @@ class CustomCategory {
     required this.iconCode,
     required this.fontFamily,
     required this.colorValue,
+    this.type = TransactionType.expense,
   });
 
   IconData get icon => IconData(iconCode, fontFamily: fontFamily);
@@ -24,6 +27,7 @@ class CustomCategory {
     'iconCode': iconCode,
     'fontFamily': fontFamily,
     'colorValue': colorValue,
+    'type': type.name,
   };
 
   factory CustomCategory.fromMap(Map<String, dynamic> m) => CustomCategory(
@@ -32,6 +36,10 @@ class CustomCategory {
     iconCode: m['iconCode'] as int,
     fontFamily: m['fontFamily'] as String,
     colorValue: m['colorValue'] as int,
+    type: TransactionType.values.firstWhere(
+      (e) => e.name == m['type'],
+      orElse: () => TransactionType.expense,
+    ),
   );
 
   static const iconChoices = [

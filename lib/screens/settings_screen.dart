@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sentra_app/core/models/currency_info.dart';
 import 'package:sentra_app/core/models/custom_category.dart';
+import 'package:sentra_app/core/models/transaction.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/features/categories/cubit/categories_cubit.dart';
 import 'package:sentra_app/features/settings/cubit/settings_cubit.dart';
@@ -711,13 +712,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   child: Icon(cat.icon, color: cat.color, size: 18),
                 ),
-                title: Text(
-                  cat.name,
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
+                title: Row(
+                  children: [
+                    Text(
+                      cat.name,
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: (cat.type == TransactionType.income
+                                ? AppColors.income
+                                : AppColors.expense)
+                            .withAlpha(26),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        cat.type == TransactionType.income
+                            ? 'Pemasukan'
+                            : 'Pengeluaran',
+                        style: TextStyle(
+                          color: cat.type == TransactionType.income
+                              ? AppColors.income
+                              : AppColors.expense,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 trailing: GestureDetector(
                   onTap: () => _deleteCategory(cat.id),
@@ -806,6 +837,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final nameCtrl = TextEditingController();
     IconData selectedIcon = CustomCategory.iconChoices.first;
     Color selectedColor = CustomCategory.colorChoices.first;
+    TransactionType selectedType = TransactionType.expense;
 
     showDialog(
       context: context,
@@ -824,6 +856,86 @@ class _SettingsScreenState extends State<SettingsScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Type selector
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceElevated,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () =>
+                              setD(() => selectedType = TransactionType.expense),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: selectedType == TransactionType.expense
+                                  ? AppColors.expense.withAlpha(30)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(7),
+                              border: selectedType == TransactionType.expense
+                                  ? Border.all(
+                                      color: AppColors.expense.withAlpha(80),
+                                    )
+                                  : null,
+                            ),
+                            child: Center(
+                              child: Text(
+                                'Pengeluaran',
+                                style: TextStyle(
+                                  color: selectedType == TransactionType.expense
+                                      ? AppColors.expense
+                                      : AppColors.textMuted,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () =>
+                              setD(() => selectedType = TransactionType.income),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: selectedType == TransactionType.income
+                                  ? AppColors.income.withAlpha(30)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(7),
+                              border: selectedType == TransactionType.income
+                                  ? Border.all(
+                                      color: AppColors.income.withAlpha(80),
+                                    )
+                                  : null,
+                            ),
+                            child: Center(
+                              child: Text(
+                                'Pemasukan',
+                                style: TextStyle(
+                                  color: selectedType == TransactionType.income
+                                      ? AppColors.income
+                                      : AppColors.textMuted,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
                 TextField(
                   controller: nameCtrl,
                   style: TextStyle(color: AppColors.textPrimary),
@@ -931,6 +1043,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   name: nameCtrl.text.trim(),
                   icon: selectedIcon,
                   color: selectedColor,
+                  type: selectedType,
                 );
                 if (!ctx.mounted) return;
                 Navigator.pop(ctx);

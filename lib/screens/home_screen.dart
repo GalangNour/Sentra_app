@@ -22,6 +22,7 @@ import 'package:sentra_app/screens/quick_input_screen.dart';
 import 'package:sentra_app/screens/quick_parse_result_screen.dart';
 import 'package:sentra_app/screens/sentra_brain_screen.dart';
 import 'package:sentra_app/screens/transactions_screen.dart';
+import 'package:sentra_app/widgets/insight_section.dart';
 import 'package:sentra_app/widgets/transaction_list_item.dart';
 import 'package:sentra_app/widgets/voice_input_sheet.dart';
 
@@ -163,6 +164,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         SliverToBoxAdapter(child: _buildBalanceCard()),
         SliverToBoxAdapter(child: _buildQuickAdd()),
         SliverToBoxAdapter(child: _buildSentraBrainCard()),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            child: InsightSection(snapshot: _snapshot),
+          ),
+        ),
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),

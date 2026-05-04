@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sentra_app/core/models/custom_category.dart';
+import 'package:sentra_app/core/models/transaction.dart';
 import 'package:sentra_app/core/repositories/custom_category_repository.dart';
 import 'package:sentra_app/features/categories/cubit/categories_state.dart';
 import 'package:uuid/uuid.dart';
@@ -16,6 +17,7 @@ class CategoriesCubit extends Cubit<CategoriesState> {
     required String name,
     required IconData icon,
     required Color color,
+    required TransactionType type,
   }) async {
     final category = CustomCategory(
       id: _uuid.v4(),
@@ -23,6 +25,7 @@ class CategoriesCubit extends Cubit<CategoriesState> {
       iconCode: icon.codePoint,
       fontFamily: icon.fontFamily ?? 'MaterialIcons',
       colorValue: color.toARGB32(),
+      type: type,
     );
     await _repository.save(category);
     emit(

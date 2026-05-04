@@ -24,12 +24,13 @@ class AiService {
     required String systemContext,
     required List<ChatMessage> history,
     required String userMessage,
+    int maxOutputTokens = 1024,
   }) async {
     final model = GenerativeModel(
       model: _model,
       apiKey: ApiConfig.geminiApiKey,
       systemInstruction: Content.text(systemContext),
-      generationConfig: GenerationConfig(maxOutputTokens: 1024),
+      generationConfig: GenerationConfig(maxOutputTokens: maxOutputTokens),
     );
 
     // Gemini SDK menggunakan 'model' bukan 'assistant' untuk role AI

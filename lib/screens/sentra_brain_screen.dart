@@ -7,9 +7,14 @@ import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/widgets/chat_bubbles/index.dart';
 
 class SentraBrainScreen extends StatefulWidget {
-  const SentraBrainScreen({super.key, required this.snapshot});
+  const SentraBrainScreen({
+    super.key,
+    required this.snapshot,
+    this.initialPrompt,
+  });
 
   final FinanceSnapshot snapshot;
+  final String? initialPrompt;
 
   @override
   State<SentraBrainScreen> createState() => _SentraBrainScreenState();
@@ -40,6 +45,11 @@ class _SentraBrainScreenState extends State<SentraBrainScreen> {
       text: 'Hai Sobat! 👋 Ada yang bisa aku bantu soal keuanganmu hari ini?',
       timestamp: DateTime.now(),
     ));
+    if (widget.initialPrompt != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _sendMessage(widget.initialPrompt!);
+      });
+    }
   }
 
   @override

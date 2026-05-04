@@ -2,6 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:sentra_app/core/models/transaction.dart';
 
 class CategoryMeta {
+  static const Set<TransactionCategory> _expenseCategories = {
+    TransactionCategory.food,
+    TransactionCategory.transport,
+    TransactionCategory.shopping,
+    TransactionCategory.entertainment,
+    TransactionCategory.health,
+    TransactionCategory.bills,
+    TransactionCategory.other,
+  };
+
+  static const Set<TransactionCategory> _incomeCategories = {
+    TransactionCategory.salary,
+    TransactionCategory.investment,
+    TransactionCategory.other,
+  };
+
+  static List<TransactionCategory> forType(TransactionType type) {
+    return type == TransactionType.expense
+        ? _expenseCategories.toList()
+        : _incomeCategories.toList();
+  }
+
   static const Map<TransactionCategory, _CatData> _data = {
     TransactionCategory.food: _CatData(
       'Makanan',
