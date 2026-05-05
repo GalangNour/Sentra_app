@@ -12,7 +12,7 @@ import 'package:sentra_app/features/installments/cubit/installments_cubit.dart';
 import 'package:sentra_app/features/settings/cubit/settings_cubit.dart';
 import 'package:sentra_app/features/settings/cubit/settings_state.dart';
 import 'package:sentra_app/features/transactions/cubit/transactions_cubit.dart';
-import 'package:sentra_app/screens/home_screen.dart';
+import 'package:sentra_app/screens/main_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -77,7 +77,7 @@ class SentraApp extends StatelessWidget {
                 accent: settingsState.accent,
                 font: settingsState.fontPreset,
               ),
-              home: const HomeScreen(),
+              home: const MainScreen(),
             );
           },
         ),

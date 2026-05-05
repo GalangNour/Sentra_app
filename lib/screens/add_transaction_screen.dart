@@ -42,6 +42,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   DateTime _date = DateTime.now();
   List<String> _suggestions = [];
   bool _showSuggestions = false;
+  bool _showInstallmentSection = false;
   late FinanceSnapshot _snapshot;
 
   FinanceSnapshot _readSnapshot() {
@@ -140,6 +141,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _type == TransactionType.expense ? AppColors.expense : AppColors.income;
 
   bool get _isInstallmentMode => widget.initialInstallmentPlanId != null;
+
+  List<InstallmentPlan> get _availableInstallments {
+    final plans = _snapshot.activeInstallmentPlans.toList();
+    final current = _snapshot.installmentById(_installmentPlanId);
+    if (current != null && !plans.any((p) => p.id == current.id)) {
+      plans.insert(0, current);
+    }
+    return plans;
+  }
 
   double _selectedInstallmentRemaining({String? excludingTransactionId}) {
     final planId = _installmentPlanId;
@@ -304,7 +314,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (widget.scanData != null) ...[
-              _buildScanBanner(),
+              _buildImagePreview(),
               const SizedBox(height: 16),
             ],
             if (!_isInstallmentMode) ...[
@@ -323,8 +333,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               _buildInstallmentInfoCard(),
             ],
             if (!_isInstallmentMode) ...[
-              const SizedBox(height: 20),
-              _buildCategoryPicker(),
+              if (_installmentPlanId == null) ...[
+                const SizedBox(height: 20),
+                _buildCategoryPicker(),
+              ],
+              if (_type == TransactionType.expense) ...[
+                const SizedBox(height: 12),
+                _buildInstallmentToggle(),
+              ],
             ],
             if (widget.scanData?.rawText != null &&
                 widget.scanData!.rawText!.isNotEmpty) ...[
@@ -337,109 +353,113 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
-  // ─── Scan banner ─────────────────────────────────────────
+  // ─── Image preview (scan mode) ───────────────────────────
 
-  Widget _buildScanBanner() {
+  Widget _buildImagePreview() {
     final scan = widget.scanData!;
     final hasTotal = scan.total > 0;
     final isGemini = scan.source == 'gemini';
-    final bannerColor = hasTotal ? AppColors.income : AppColors.warning;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: bannerColor.withAlpha(20),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: bannerColor.withAlpha(51)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: bannerColor.withAlpha(26),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              hasTotal
-                  ? Icons.document_scanner_rounded
-                  : Icons.warning_amber_rounded,
-              color: bannerColor,
-              size: 18,
-            ),
+
+    return Stack(
+      children: [
+        Container(
+          height: 280,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            color: AppColors.surfaceCard,
+            border: Border.all(color: AppColors.surfaceBorder),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: scan.imagePath != null
+                ? Image.file(File(scan.imagePath!), fit: BoxFit.cover)
+                : Center(
+                    child: Icon(
+                      Icons.receipt_long_rounded,
+                      color: AppColors.textMuted,
+                      size: 48,
+                    ),
+                  ),
+          ),
+        ),
+        // Source badge — top right
+        Positioned(
+          top: 12,
+          right: 12,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: (isGemini ? AppColors.primary : AppColors.surfaceElevated)
+                  .withAlpha(210),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: (isGemini
+                        ? AppColors.primary
+                        : AppColors.surfaceBorder)
+                    .withAlpha(120),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
-                  children: [
-                    Text(
-                      hasTotal
-                          ? 'Hasil scan ditemukan'
-                          : 'Total tidak terdeteksi',
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color:
-                            (isGemini ? AppColors.primary : AppColors.textMuted)
-                                .withAlpha(30),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color:
-                              (isGemini
-                                      ? AppColors.primary
-                                      : AppColors.textMuted)
-                                  .withAlpha(80),
-                        ),
-                      ),
-                      child: Text(
-                        isGemini ? 'Gemini AI' : 'ML Kit',
-                        style: TextStyle(
-                          color: isGemini
-                              ? AppColors.primaryLight
-                              : AppColors.textMuted,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                    ),
-                  ],
+                Icon(
+                  isGemini
+                      ? Icons.auto_awesome_rounded
+                      : Icons.document_scanner_rounded,
+                  size: 12,
+                  color: isGemini ? AppColors.primaryLight : AppColors.textMuted,
                 ),
+                const SizedBox(width: 5),
                 Text(
-                  hasTotal
-                      ? 'Periksa & edit jika ada yang salah'
-                      : 'Isi jumlah secara manual',
-                  style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+                  isGemini ? 'Gemini AI' : 'ML Kit',
+                  style: TextStyle(
+                    color: isGemini
+                        ? AppColors.primaryLight
+                        : AppColors.textMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ],
             ),
           ),
-          if (scan.imagePath != null)
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                image: DecorationImage(
-                  image: FileImage(File(scan.imagePath!)),
-                  fit: BoxFit.cover,
-                ),
-              ),
+        ),
+        // Status badge — bottom left
+        Positioned(
+          bottom: 12,
+          left: 12,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: (hasTotal ? AppColors.income : AppColors.warning)
+                  .withAlpha(210),
+              borderRadius: BorderRadius.circular(20),
             ),
-        ],
-      ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  hasTotal
+                      ? Icons.check_circle_rounded
+                      : Icons.warning_amber_rounded,
+                  size: 12,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  hasTotal ? 'Nominal terdeteksi' : 'Isi nominal manual',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -666,6 +686,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             _type = t;
             if (_type == TransactionType.income) {
               _installmentPlanId = null;
+              _showInstallmentSection = false;
             }
             // Reset category if it doesn't belong to the new type
             final validBuiltin = CategoryMeta.forType(_type);
@@ -874,6 +895,219 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInstallmentToggle() {
+    final plans = _availableInstallments;
+    final selectedPlan = _snapshot.installmentById(_installmentPlanId);
+    final remaining = selectedPlan == null
+        ? 0.0
+        : _selectedInstallmentRemaining(
+            excludingTransactionId: widget.editTransaction?.id,
+          );
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _installmentPlanId != null
+              ? AppColors.warning.withAlpha(120)
+              : AppColors.surfaceBorder,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // ── Toggle header ──
+          InkWell(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              setState(() => _showInstallmentSection = !_showInstallmentSection);
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: (_installmentPlanId != null
+                              ? AppColors.warning
+                              : AppColors.textMuted)
+                          .withAlpha(20),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      Icons.account_balance_wallet_rounded,
+                      color: _installmentPlanId != null
+                          ? AppColors.warning
+                          : AppColors.textMuted,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Pembayaran Cicilan',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          selectedPlan != null
+                              ? '${selectedPlan.name} · Sisa ${Fmt.full(remaining)}'
+                              : 'Tap untuk memilih cicilan',
+                          style: TextStyle(
+                            color: selectedPlan != null
+                                ? AppColors.warning
+                                : AppColors.textMuted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_installmentPlanId != null)
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() {
+                          _installmentPlanId = null;
+                          _showInstallmentSection = false;
+                        });
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(
+                          Icons.close_rounded,
+                          size: 16,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    _showInstallmentSection
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                    color: AppColors.textMuted,
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // ── Expandable plan list ──
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            child: _showInstallmentSection
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Divider(
+                        color: AppColors.surfaceBorder,
+                        height: 1,
+                        thickness: 1,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: plans.isEmpty
+                            ? Text(
+                                'Belum ada cicilan aktif. Tambahkan cicilan dari beranda terlebih dulu.',
+                                style: TextStyle(
+                                  color: AppColors.textMuted,
+                                  fontSize: 12,
+                                  height: 1.5,
+                                ),
+                              )
+                            : Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: plans.map((plan) {
+                                  final sel = _installmentPlanId == plan.id;
+                                  final planRemaining = sel
+                                      ? remaining
+                                      : _snapshot.installmentRemaining(plan.id);
+                                  return GestureDetector(
+                                    onTap: () {
+                                      HapticFeedback.selectionClick();
+                                      setState(() {
+                                        _installmentPlanId = plan.id;
+                                        _category = TransactionCategory.bills;
+                                        _customCategoryId = null;
+                                        _showInstallmentSection = false;
+                                      });
+                                    },
+                                    child: AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 180,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 10,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: sel
+                                            ? AppColors.warning.withAlpha(20)
+                                            : AppColors.surfaceElevated,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: sel
+                                              ? AppColors.warning
+                                              : AppColors.surfaceBorder,
+                                          width: sel ? 1.4 : 1,
+                                        ),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            plan.name,
+                                            style: TextStyle(
+                                              color: sel
+                                                  ? AppColors.warning
+                                                  : AppColors.textPrimary,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 3),
+                                          Text(
+                                            'Sisa ${Fmt.full(planRemaining)}',
+                                            style: TextStyle(
+                                              color: sel
+                                                  ? AppColors.warning
+                                                  : AppColors.textSecondary,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                      ),
+                    ],
+                  )
+                : const SizedBox.shrink(),
           ),
         ],
       ),

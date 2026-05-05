@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:sentra_app/core/models/scan_prefill.dart';
+import 'package:sentra_app/core/services/ocr_service.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
-import 'package:sentra_app/screens/scan_region_screen.dart';
+import 'package:sentra_app/screens/add_transaction_screen.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -21,31 +23,17 @@ class _CameraScreenState extends State<CameraScreen>
   bool _isProcessing = false;
   bool _flashOn = false;
   bool _permissionDenied = false;
-  int _selectedModeIndex = 0;
-  int _selectedCameraIndex = 0;
 
-  final List<String> _modes = ['Struk', 'Transfer', 'Invoice', 'Manual'];
-
-  late AnimationController _scanLineCtrl;
   late AnimationController _pulseCtrl;
-  late Animation<double> _scanLineAnim;
   late Animation<double> _pulseAnim;
 
   @override
   void initState() {
     super.initState();
-    _scanLineCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    );
     _pulseCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     )..repeat(reverse: true);
-    _scanLineAnim = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _scanLineCtrl, curve: Curves.linear));
     _pulseAnim = Tween<double>(
       begin: 0.95,
       end: 1.05,
@@ -65,7 +53,12 @@ class _CameraScreenState extends State<CameraScreen>
         if (mounted) setState(() => _permissionDenied = true);
         return;
       }
-      await _startCamera(_cameras[0]);
+      // Always start with the back camera (index 0)
+      final back = _cameras.firstWhere(
+        (c) => c.lensDirection == CameraLensDirection.back,
+        orElse: () => _cameras[0],
+      );
+      await _startCamera(back);
     } catch (e) {
       debugPrint('Camera init error: $e');
       if (mounted) setState(() => _permissionDenied = true);
@@ -95,14 +88,6 @@ class _CameraScreenState extends State<CameraScreen>
     }
   }
 
-  Future<void> _switchCamera() async {
-    if (_cameras.length < 2) return;
-    _selectedCameraIndex = (_selectedCameraIndex + 1) % _cameras.length;
-    setState(() => _isInitialized = false);
-    await _controller?.dispose();
-    await _startCamera(_cameras[_selectedCameraIndex]);
-  }
-
   Future<void> _toggleFlash() async {
     if (_controller == null || !_isInitialized) return;
     setState(() => _flashOn = !_flashOn);
@@ -116,19 +101,52 @@ class _CameraScreenState extends State<CameraScreen>
     try {
       final XFile file = await _controller!.takePicture();
       if (!mounted) return;
-      setState(() => _isProcessing = false);
+      final result = await OcrService.processReceipt(file.path);
+      if (!mounted) return;
       await Navigator.of(context).push(
         PageRouteBuilder(
-          pageBuilder: (_, a, __) => ScanRegionScreen(imagePath: file.path),
-          transitionsBuilder: (_, a, __, child) =>
-              FadeTransition(opacity: a, child: child),
+          pageBuilder: (_, a, secondary) => AddTransactionScreen(
+            scanData: ScanPrefill(
+              merchant: result.merchant,
+              total: result.total,
+              category: result.category,
+              imagePath: result.imagePath,
+              rawText: result.rawText,
+              source: result.source,
+              warning: result.warning,
+              candidateAmounts: result.candidateAmounts,
+            ),
+          ),
+          transitionsBuilder: (_, a, secondary, child) {
+            final tween = Tween(
+              begin: const Offset(0, 1),
+              end: Offset.zero,
+            ).chain(CurveTween(curve: Curves.easeOutCubic));
+            return SlideTransition(position: a.drive(tween), child: child);
+          },
         ),
       );
+      if (result.warning != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.warning!),
+            backgroundColor: AppColors.warning,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            margin: const EdgeInsets.all(16),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
     } on CameraException catch (e) {
       if (mounted) _showError('Gagal mengambil foto: ${e.description}');
     } catch (e) {
       debugPrint('Capture error: $e');
-      if (mounted) _showError('Gagal mengambil foto. Coba lagi.');
+      final rawMsg = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
+      final msg = rawMsg.length > 120 ? '${rawMsg.substring(0, 120)}…' : rawMsg;
+      if (mounted) _showError(msg.isNotEmpty ? msg : 'Gagal memproses foto. Coba lagi.');
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
@@ -149,7 +167,6 @@ class _CameraScreenState extends State<CameraScreen>
   @override
   void dispose() {
     _controller?.dispose();
-    _scanLineCtrl.dispose();
     _pulseCtrl.dispose();
     super.dispose();
   }
@@ -164,10 +181,13 @@ class _CameraScreenState extends State<CameraScreen>
               fit: StackFit.expand,
               children: [
                 _buildPreview(),
-                _buildTopBar(),
-                _buildScanFrame(),
-                if (_isProcessing) _buildScanLine(),
-                _buildModeSelector(),
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: _buildTopBar(),
+                ),
+                if (_isProcessing) _buildProcessingOverlay(),
                 _buildBottomControls(),
               ],
             ),
@@ -297,59 +317,144 @@ class _CameraScreenState extends State<CameraScreen>
 
   Widget _buildTopBar() {
     return SafeArea(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _iconBtn(
-                  Icons.arrow_back_ios_new_rounded,
-                  onTap: () => Navigator.of(context).pop(),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white12),
-                  ),
-                  child: const Text(
-                    'Scan Struk',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Row(
-                  children: [
-                    if (_cameras.length > 1) ...[
-                      _iconBtn(
-                        Icons.flip_camera_android_rounded,
-                        onTap: _switchCamera,
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                    _iconBtn(
-                      _flashOn
-                          ? Icons.flash_on_rounded
-                          : Icons.flash_off_rounded,
-                      onTap: _toggleFlash,
-                      active: _flashOn,
-                    ),
-                  ],
-                ),
-              ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _iconBtn(
+              Icons.arrow_back_ios_new_rounded,
+              onTap: () => Navigator.of(context).pop(),
             ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white12),
+              ),
+              child: const Text(
+                'Scan Struk',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            _iconBtn(
+              _flashOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
+              onTap: _toggleFlash,
+              active: _flashOn,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProcessingOverlay() {
+    return Container(
+      color: Colors.black.withAlpha(180),
+      child: const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: AppColors.income),
+            SizedBox(height: 16),
+            Text(
+              'Memproses foto...',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomControls() {
+    final bottom = MediaQuery.of(context).padding.bottom;
+    return Positioned(
+      bottom: 0,
+      left: 0,
+      right: 0,
+      child: Container(
+        padding: EdgeInsets.only(
+          left: 48,
+          right: 48,
+          top: 24,
+          bottom: bottom + 32,
+        ),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.transparent, Colors.black.withAlpha(230)],
           ),
-        ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!_isProcessing)
+              const Text(
+                'Arahkan kamera ke struk belanja',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white60, fontSize: 13),
+              )
+            else
+              const SizedBox(height: 18),
+            const SizedBox(height: 16),
+            Center(
+              child: AnimatedBuilder(
+                animation: _pulseAnim,
+                builder: (_, child) => GestureDetector(
+                  onTap: _isProcessing ? null : _capture,
+                  child: Transform.scale(
+                    scale: _isProcessing ? _pulseAnim.value : 1.0,
+                    child: Container(
+                      width: 76,
+                      height: 76,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: _isProcessing
+                            ? AppColors.incomeGradient
+                            : AppColors.primaryGradient,
+                        boxShadow: [
+                          BoxShadow(
+                            color: (_isProcessing
+                                    ? AppColors.income
+                                    : AppColors.primary)
+                                .withAlpha(128),
+                            blurRadius: 24,
+                            spreadRadius: 4,
+                          ),
+                        ],
+                      ),
+                      child: Container(
+                        margin: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white30, width: 2),
+                        ),
+                        child: Icon(
+                          _isProcessing
+                              ? Icons.hourglass_top_rounded
+                              : Icons.camera_alt_rounded,
+                          color: Colors.white,
+                          size: 30,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -379,330 +484,9 @@ class _CameraScreenState extends State<CameraScreen>
       ),
     );
   }
-
-  Widget _buildScanFrame() {
-    final w = MediaQuery.of(context).size.width * 0.82;
-    final h = w * 1.35;
-    return Center(
-      child: SizedBox(
-        width: w,
-        height: h,
-        child: Stack(
-          children: [
-            CustomPaint(
-              size: Size(w, h),
-              painter: _FramePainter(
-                color: _isProcessing ? AppColors.income : AppColors.primary,
-              ),
-            ),
-            Positioned(
-              bottom: -52,
-              left: 0,
-              right: 0,
-              child: _isProcessing
-                  ? Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.income,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Memproses struk...',
-                          style: TextStyle(
-                            color: AppColors.income,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    )
-                  : !_isInitialized
-                  ? Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Memuat kamera...',
-                          style: TextStyle(
-                            color: AppColors.textMuted,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    )
-                  : const Text(
-                      'Arahkan kamera ke struk belanja',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white60, fontSize: 13),
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildScanLine() {
-    final w = MediaQuery.of(context).size.width * 0.82;
-    final h = w * 1.35;
-    return Center(
-      child: ClipRect(
-        child: SizedBox(
-          width: w,
-          height: h,
-          child: AnimatedBuilder(
-            animation: _scanLineAnim,
-            builder: (_, __) => Stack(
-              children: [
-                Positioned(
-                  top: _scanLineAnim.value * h,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    height: 2,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.transparent,
-                          AppColors.income.withAlpha(204),
-                          AppColors.income,
-                          AppColors.income.withAlpha(204),
-                          Colors.transparent,
-                        ],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.income.withAlpha(153),
-                          blurRadius: 12,
-                          spreadRadius: 3,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildModeSelector() {
-    final bottom = MediaQuery.of(context).padding.bottom;
-    return Positioned(
-      bottom: bottom + 110,
-      left: 0,
-      right: 0,
-      child: SizedBox(
-        height: 36,
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          itemCount: _modes.length,
-          itemBuilder: (_, i) {
-            final sel = i == _selectedModeIndex;
-            return GestureDetector(
-              onTap: () {
-                setState(() => _selectedModeIndex = i);
-                HapticFeedback.selectionClick();
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.only(right: 10),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: sel
-                      ? AppColors.primary.withAlpha(230)
-                      : Colors.black54,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: sel ? AppColors.primary : Colors.white24,
-                  ),
-                ),
-                child: Text(
-                  _modes[i],
-                  style: TextStyle(
-                    color: sel ? Colors.white : Colors.white60,
-                    fontSize: 13,
-                    fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBottomControls() {
-    final bottom = MediaQuery.of(context).padding.bottom;
-    return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: Container(
-        padding: EdgeInsets.only(
-          left: 48,
-          right: 48,
-          top: 20,
-          bottom: bottom + 16,
-        ),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.transparent, Colors.black.withAlpha(230)],
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _sideBtn(Icons.photo_library_outlined, onTap: () {}),
-            AnimatedBuilder(
-              animation: _pulseAnim,
-              builder: (_, __) => GestureDetector(
-                onTap: _isProcessing ? null : _capture,
-                child: Transform.scale(
-                  scale: _isProcessing ? _pulseAnim.value : 1.0,
-                  child: Container(
-                    width: 76,
-                    height: 76,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: _isProcessing
-                          ? AppColors.incomeGradient
-                          : AppColors.primaryGradient,
-                      boxShadow: [
-                        BoxShadow(
-                          color:
-                              (_isProcessing
-                                      ? AppColors.income
-                                      : AppColors.primary)
-                                  .withAlpha(128),
-                          blurRadius: 24,
-                          spreadRadius: 4,
-                        ),
-                      ],
-                    ),
-                    child: Container(
-                      margin: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white30, width: 2),
-                      ),
-                      child: Icon(
-                        _isProcessing
-                            ? Icons.hourglass_top_rounded
-                            : Icons.camera_alt_rounded,
-                        color: Colors.white,
-                        size: 30,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            _sideBtn(
-              Icons.edit_rounded,
-              onTap: () => Navigator.of(context).pop(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _sideBtn(IconData icon, {required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          color: Colors.white12,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white24),
-        ),
-        child: Icon(icon, color: Colors.white, size: 22),
-      ),
-    );
-  }
 }
 
 // ─── Painters ─────────────────────────────────────────────
-
-class _FramePainter extends CustomPainter {
-  final Color color;
-  _FramePainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Paint()
-      ..color = color
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    const len = 28.0, r = 10.0;
-    final paths = [
-      Path()
-        ..moveTo(0, len)
-        ..lineTo(0, r)
-        ..quadraticBezierTo(0, 0, r, 0)
-        ..lineTo(len, 0),
-      Path()
-        ..moveTo(size.width - len, 0)
-        ..lineTo(size.width - r, 0)
-        ..quadraticBezierTo(size.width, 0, size.width, r)
-        ..lineTo(size.width, len),
-      Path()
-        ..moveTo(0, size.height - len)
-        ..lineTo(0, size.height - r)
-        ..quadraticBezierTo(0, size.height, r, size.height)
-        ..lineTo(len, size.height),
-      Path()
-        ..moveTo(size.width - len, size.height)
-        ..lineTo(size.width - r, size.height)
-        ..quadraticBezierTo(
-          size.width,
-          size.height,
-          size.width,
-          size.height - r,
-        )
-        ..lineTo(size.width, size.height - len),
-    ];
-    final glow = Paint()
-      ..strokeWidth = 10
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-    for (final path in paths) {
-      canvas.drawPath(path, p);
-      canvas.drawPath(path, glow..color = color.withAlpha(51));
-    }
-  }
-
-  @override
-  bool shouldRepaint(_FramePainter old) => old.color != color;
-}
 
 class _GridPainter extends CustomPainter {
   @override
@@ -719,5 +503,5 @@ class _GridPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_GridPainter _) => false;
+  bool shouldRepaint(_GridPainter old) => false;
 }
