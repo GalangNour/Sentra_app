@@ -7,9 +7,13 @@ import 'package:sentra_app/features/categories/cubit/categories_cubit.dart';
 import 'package:sentra_app/features/installments/cubit/installments_cubit.dart';
 import 'package:sentra_app/features/settings/cubit/settings_cubit.dart';
 import 'package:sentra_app/features/transactions/cubit/transactions_cubit.dart';
+import 'package:sentra_app/core/models/parsed_transaction.dart';
 import 'package:sentra_app/screens/camera_screen.dart';
+import 'package:sentra_app/screens/multi_parse_result_screen.dart';
 import 'package:sentra_app/screens/quick_input_screen.dart';
+import 'package:sentra_app/screens/quick_parse_result_screen.dart';
 import 'package:sentra_app/screens/sentra_brain_screen.dart';
+import 'package:sentra_app/widgets/voice_input_sheet.dart';
 
 class AiModalSheet extends StatelessWidget {
   const AiModalSheet({super.key, required this.parentContext});
@@ -130,38 +134,37 @@ class AiModalSheet extends StatelessWidget {
               );
             },
           ),
-          Opacity(
-            opacity: 0.5,
-            child: _OptionTile(
-              leadingColor: AppColors.textMuted,
-              leadingIcon: Icons.mic_rounded,
-              title: 'Voice Input',
-              subtitle: 'Rekam suara, AI yang catat',
-              trailing: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.warning.withAlpha(38),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Text(
-                  'Segera',
-                  style: TextStyle(
-                    color: AppColors.warning,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              onTap: () {
-                HapticFeedback.lightImpact();
-                ScaffoldMessenger.of(parentContext).showSnackBar(
-                  const SnackBar(
-                    content: Text('Voice Input segera hadir 🎙️'),
-                    behavior: SnackBarBehavior.floating,
+          _OptionTile(
+            leadingColor: AppColors.expense,
+            leadingIcon: Icons.mic_rounded,
+            title: 'Voice Input',
+            subtitle: 'Rekam suara, AI yang catat',
+            onTap: () async {
+              HapticFeedback.mediumImpact();
+              Navigator.of(context).pop();
+              final results = await showModalBottomSheet<dynamic>(
+                context: parentContext,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => const VoiceInputSheet(),
+              );
+              if (results == null || results is! List || results.isEmpty) return;
+              if (!parentContext.mounted) return;
+              final typed = List<ParsedTransaction>.from(results);
+              if (typed.length == 1) {
+                Navigator.of(parentContext).push(
+                  MaterialPageRoute(
+                    builder: (_) => QuickParseResultScreen(parsed: typed.first),
                   ),
                 );
-              },
-            ),
+              } else {
+                Navigator.of(parentContext).push(
+                  MaterialPageRoute(
+                    builder: (_) => MultiParseResultScreen(transactions: typed),
+                  ),
+                );
+              }
+            },
           ),
         ],
       ),

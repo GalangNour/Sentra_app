@@ -11,10 +11,7 @@ import 'package:sentra_app/features/transactions/cubit/transactions_cubit.dart';
 import 'package:sentra_app/screens/add_transaction_screen.dart';
 import 'package:sentra_app/screens/installments_list_screen.dart';
 import 'package:sentra_app/screens/sentra_brain_screen.dart';
-import 'package:sentra_app/screens/transaction_detail_screen.dart';
-import 'package:sentra_app/screens/transactions_screen.dart';
 import 'package:sentra_app/widgets/insight_section.dart';
-import 'package:sentra_app/widgets/transaction_list_item.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -53,24 +50,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Future<void> _openDetail(Transaction tx) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => TransactionDetailScreen(transaction: tx),
-      ),
-    );
-  }
-
   Future<void> _openInstallments() async {
     await Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => const InstallmentsListScreen()));
-  }
-
-  Future<void> _openAllTransactions() async {
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const TransactionsScreen()));
   }
 
   @override
@@ -86,8 +69,6 @@ class _HomeScreenState extends State<HomeScreen> {
   // ─── HOME TAB ────────────────────────────────────────────
 
   Widget _buildHomeTab() {
-    final txs = _snapshot.transactions;
-    final recentTxs = txs.take(5).toList();
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(child: _buildHeader()),
@@ -96,52 +77,10 @@ class _HomeScreenState extends State<HomeScreen> {
         SliverToBoxAdapter(child: _buildSentraBrainCard()),
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 80),
             child: InsightSection(snapshot: _snapshot),
           ),
         ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Transaksi Terakhir',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                if (txs.isNotEmpty)
-                  TextButton(
-                    onPressed: _openAllTransactions,
-                    child: Text(
-                      'Lihat Semua',
-                      style: TextStyle(
-                        color: AppColors.primaryLight,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-        if (txs.isEmpty)
-          SliverToBoxAdapter(child: _buildEmptyState())
-        else
-          SliverList(
-            delegate: SliverChildBuilderDelegate((_, i) {
-              if (i >= recentTxs.length) return const SizedBox(height: 100);
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: _buildTxCard(recentTxs[i], i),
-              );
-            }, childCount: recentTxs.length + 1),
-          ),
       ],
     );
   }
@@ -459,112 +398,4 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildEmptyState() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 40),
-      child: Column(
-        children: [
-          Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              gradient: AppColors.primaryGradient,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withAlpha(60),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.auto_awesome_rounded,
-              color: Colors.white,
-              size: 32,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Belum ada transaksi',
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Coba Ketik Cepat dengan AI atau\nscan struk belanjamu di atas',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppColors.textMuted,
-              fontSize: 13,
-              height: 1.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTxCard(Transaction tx, int index) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: Duration(milliseconds: 250 + index * 40),
-      curve: Curves.easeOut,
-      builder: (_, v, child) => Opacity(opacity: v, child: child),
-      child: Dismissible(
-        key: Key(tx.id),
-        direction: DismissDirection.endToStart,
-        background: Container(
-          alignment: Alignment.centerRight,
-          padding: const EdgeInsets.only(right: 20),
-          margin: const EdgeInsets.only(top: 10),
-          decoration: BoxDecoration(
-            color: AppColors.expense.withAlpha(38),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: const Icon(
-            Icons.delete_outline_rounded,
-            color: AppColors.expense,
-          ),
-        ),
-        confirmDismiss: (_) async {
-          return await showDialog<bool>(
-            context: context,
-            builder: (_) => AlertDialog(
-              backgroundColor: AppColors.surfaceCard,
-              title: Text(
-                'Hapus transaksi?',
-                style: TextStyle(color: AppColors.textPrimary),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Batal'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: const Text(
-                    'Hapus',
-                    style: TextStyle(color: AppColors.expense),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-        onDismissed: (_) async {
-          await context.read<TransactionsCubit>().deleteTransaction(tx.id);
-        },
-        child: TransactionListItem(
-          transaction: tx,
-          dateLabel: Fmt.timeAgo(tx.date),
-          onTap: () => _openDetail(tx),
-          margin: const EdgeInsets.only(top: 10),
-        ),
-      ),
-    );
-  }
 }

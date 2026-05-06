@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -23,6 +24,9 @@ class _VoiceInputSheetState extends State<VoiceInputSheet>
   int _levelHead = 0;
 
   String _transcript = '';
+  String _displayedText = '';
+  String _targetText = '';
+  Timer? _typeTimer;
   bool _isListening = false;
   bool _speechAvailable = false;
   bool _loading = false;
@@ -56,6 +60,7 @@ class _VoiceInputSheetState extends State<VoiceInputSheet>
       onResult: (text, isFinal) {
         if (!mounted) return;
         setState(() => _transcript = text);
+        _startTypewriter(text);
         if (isFinal) setState(() => _isListening = false);
       },
       onError: (err) {
@@ -72,10 +77,38 @@ class _VoiceInputSheetState extends State<VoiceInputSheet>
     );
   }
 
+  void _startTypewriter(String target) {
+    _targetText = target;
+    _typeTimer?.cancel();
+    if (target.length < _displayedText.length) {
+      setState(() => _displayedText = target);
+      return;
+    }
+    if (_displayedText == target) return;
+    _typeTimer = Timer.periodic(const Duration(milliseconds: 28), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      if (_displayedText.length < _targetText.length) {
+        setState(() {
+          _displayedText = _targetText.substring(0, _displayedText.length + 1);
+        });
+      } else {
+        t.cancel();
+      }
+    });
+  }
+
   Future<void> _restart() async {
     HapticFeedback.selectionClick();
+    _typeTimer?.cancel();
     await _voice.stop();
-    setState(() => _transcript = '');
+    setState(() {
+      _transcript = '';
+      _displayedText = '';
+      _targetText = '';
+    });
     await _startListening();
   }
 
@@ -109,6 +142,7 @@ class _VoiceInputSheetState extends State<VoiceInputSheet>
   @override
   void dispose() {
     _waveCtrl.dispose();
+    _typeTimer?.cancel();
     _voice.cancel();
     super.dispose();
   }
@@ -313,16 +347,30 @@ class _VoiceInputSheetState extends State<VoiceInputSheet>
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: AppColors.surfaceBorder),
                 ),
-                child: Text(
-                  '"$_transcript"',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 15,
-                    fontStyle: FontStyle.italic,
-                    height: 1.5,
-                  ),
+                child: RichText(
                   maxLines: 4,
                   overflow: TextOverflow.ellipsis,
+                  text: TextSpan(
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 15,
+                      fontStyle: FontStyle.italic,
+                      height: 1.5,
+                    ),
+                    children: [
+                      TextSpan(text: '"$_displayedText'),
+                      if (_displayedText.length < _targetText.length)
+                        TextSpan(
+                          text: '|',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontStyle: FontStyle.normal,
+                            fontWeight: FontWeight.w300,
+                          ),
+                        ),
+                      const TextSpan(text: '"'),
+                    ],
+                  ),
                 ),
               ),
       ),
