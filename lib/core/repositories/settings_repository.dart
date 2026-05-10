@@ -13,10 +13,10 @@ class SettingsRepository {
   }
 
   String getThemePresetId() =>
-      _box.get('theme_preset_id', defaultValue: 'navy') as String;
+      _box.get('theme_preset_id', defaultValue: 'sage') as String;
 
   int getThemeAccent() =>
-      _box.get('theme_accent', defaultValue: 0xFF6C63FF) as int;
+      _box.get('theme_accent', defaultValue: 0xFF0BC98A) as int;
 
   Future<void> saveTheme({
     required String presetId,

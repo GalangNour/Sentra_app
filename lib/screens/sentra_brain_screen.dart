@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sentra_app/core/services/ai_context_builder.dart';
@@ -11,10 +12,12 @@ class SentraBrainScreen extends StatefulWidget {
     super.key,
     required this.snapshot,
     this.initialPrompt,
+    this.initialParsed,
   });
 
   final FinanceSnapshot snapshot;
   final String? initialPrompt;
+  final Map<String, dynamic>? initialParsed;
 
   @override
   State<SentraBrainScreen> createState() => _SentraBrainScreenState();
@@ -45,7 +48,14 @@ class _SentraBrainScreenState extends State<SentraBrainScreen> {
       text: 'Hai Sobat! 👋 Ada yang bisa aku bantu soal keuanganmu hari ini?',
       timestamp: DateTime.now(),
     ));
-    if (widget.initialPrompt != null) {
+    if (widget.initialParsed != null) {
+      _messages.add(ChatMessage(
+        role: 'assistant',
+        text: jsonEncode(widget.initialParsed),
+        parsed: widget.initialParsed,
+        timestamp: DateTime.now(),
+      ));
+    } else if (widget.initialPrompt != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _sendMessage(widget.initialPrompt!);
       });

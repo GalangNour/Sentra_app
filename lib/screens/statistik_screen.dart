@@ -41,30 +41,37 @@ class StatistikScreen extends StatelessWidget {
       ..sort((a, b) => b.value.compareTo(a.value));
     final grandTotal = catTotals.values.fold(0.0, (a, b) => a + b);
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 16,
-        left: 20,
-        right: 20,
-        bottom: 24,
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        automaticallyImplyLeading: false,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Statistik',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            Text(
+              'Ringkasan keuanganmu ✦',
+              style: TextStyle(
+                color: AppColors.textSecondary.withAlpha(153),
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
       ),
+      body: SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Statistik',
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Ringkasan keuangan kamu',
-            style: TextStyle(color: AppColors.textMuted, fontSize: 14),
-          ),
-          const SizedBox(height: 20),
 
           Row(
             children: [
@@ -265,6 +272,7 @@ class StatistikScreen extends StatelessWidget {
             ),
           ],
         ],
+      ),
       ),
     );
   }

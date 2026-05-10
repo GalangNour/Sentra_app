@@ -237,7 +237,7 @@ class ThemePreset {
       textPrimary: Color(0xFF182433),
       textSecondary: Color(0xFF52657D),
       textMuted: Color(0xFF8CA0B7),
-      defaultAccent: Color(0xFF3A7BFF),
+      defaultAccent: Color(0xFF0A67EC),
     ),
     ThemePreset(
       id: 'sage',
@@ -252,7 +252,7 @@ class ThemePreset {
       textPrimary: Color(0xFF183022),
       textSecondary: Color(0xFF58715F),
       textMuted: Color(0xFF91A497),
-      defaultAccent: Color(0xFF2E9E6F),
+      defaultAccent: Color(0xFF0BC98A),
     ),
   ];
 
@@ -301,9 +301,10 @@ class ThemeConfig {
   Color get accentLight => Color.lerp(accent, Colors.white, 0.3)!;
   bool get isDark => preset.brightness == Brightness.dark;
 
+  static final ThemePreset _defaultPreset = ThemePreset.fromId('sage');
   static ThemeConfig _current = ThemeConfig(
-    preset: ThemePreset.all[0],
-    accent: ThemePreset.all[0].defaultAccent,
+    preset: _defaultPreset,
+    accent: _defaultPreset.defaultAccent,
     font: FontPreset.all[0],
   );
 

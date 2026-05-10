@@ -62,6 +62,35 @@ class _HomeScreenState extends State<HomeScreen> {
     _snapshot.applyCurrency();
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        automaticallyImplyLeading: false,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ShaderMask(
+              shaderCallback: (b) =>
+                  AppColors.primaryGradient.createShader(b),
+              child: const Text(
+                'Sentra',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ),
+            Text(
+              'Budget & Keuangan ✦',
+              style: TextStyle(
+                color: AppColors.textSecondary.withAlpha(153),
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
       body: _buildHomeTab(),
     );
   }
@@ -71,7 +100,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildHomeTab() {
     return CustomScrollView(
       slivers: [
-        SliverToBoxAdapter(child: _buildHeader()),
         SliverToBoxAdapter(child: _buildBalanceCard()),
         SliverToBoxAdapter(child: _buildQuickAdd()),
         SliverToBoxAdapter(child: _buildSentraBrainCard()),
@@ -82,38 +110,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildHeader() {
-    return Container(
-      padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 16,
-        left: 20,
-        right: 20,
-        bottom: 12,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ShaderMask(
-            shaderCallback: (b) => AppColors.primaryGradient.createShader(b),
-            child: const Text(
-              'Sentra',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-              ),
-            ),
-          ),
-          Text(
-            'Budget & Keuangan',
-            style: TextStyle(color: AppColors.textMuted, fontSize: 13),
-          ),
-        ],
-      ),
     );
   }
 

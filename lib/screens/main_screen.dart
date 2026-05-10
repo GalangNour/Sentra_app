@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:sentra_app/features/settings/cubit/settings_cubit.dart';
 import 'package:sentra_app/screens/activity_screen.dart';
 import 'package:sentra_app/screens/home_screen.dart';
 import 'package:sentra_app/screens/settings_screen.dart';
@@ -34,6 +36,7 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<SettingsCubit>();
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,

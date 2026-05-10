@@ -43,24 +43,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(
-          'Pengaturan',
-          style: TextStyle(color: AppColors.textPrimary),
-        ),
-        leading: GestureDetector(
-          onTap: () => Navigator.of(context).pop(true),
-          child: Container(
-            margin: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceCard,
-              borderRadius: BorderRadius.circular(12),
+        backgroundColor: AppColors.surface,
+        automaticallyImplyLeading: false,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Pengaturan',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
             ),
-            child: Icon(
-              Icons.arrow_back_ios_new_rounded,
-              size: 18,
-              color: AppColors.textPrimary,
+            Text(
+              'Preferensi aplikasi ✦',
+              style: TextStyle(
+                color: AppColors.textSecondary.withAlpha(153),
+                fontSize: 12,
+              ),
             ),
-          ),
+          ],
         ),
       ),
       body: ListView(
@@ -159,7 +162,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     top: 4,
                   ),
                   itemCount: CurrencyInfo.all.length,
-                  separatorBuilder: (_, __) => Divider(
+                  separatorBuilder: (_, _) => Divider(
                     color: AppColors.surfaceBorder,
                     height: 1,
                     indent: 72,
@@ -277,7 +280,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: visiblePresets.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
             itemBuilder: (_, i) {
               final preset = visiblePresets[i];
               final isSelected = preset.id == current.preset.id;
@@ -521,7 +524,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: FontPreset.all.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
             itemBuilder: (_, i) {
               final font = FontPreset.all[i];
               final isSelected = font.id == _fontPreset.id;

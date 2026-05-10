@@ -24,13 +24,15 @@ class AiService {
     required String systemContext,
     required List<ChatMessage> history,
     required String userMessage,
-    int maxOutputTokens = 1024,
+    int maxOutputTokens = 8192,
   }) async {
     final model = GenerativeModel(
       model: _model,
       apiKey: ApiConfig.geminiApiKey,
       systemInstruction: Content.text(systemContext),
-      generationConfig: GenerationConfig(maxOutputTokens: maxOutputTokens),
+      generationConfig: GenerationConfig(
+        maxOutputTokens: maxOutputTokens,
+      ),
     );
 
     // Gemini SDK menggunakan 'model' bukan 'assistant' untuk role AI
@@ -43,12 +45,24 @@ class AiService {
 
     final chat = model.startChat(history: geminiHistory);
 
+    debugPrint('[SentraBrain] === SENDING TO GEMINI ===');
+    debugPrint('[SentraBrain] USER: $userMessage');
+    for (int i = 0; i < geminiHistory.length; i++) {
+      final role = geminiHistory[i].role;
+      final part = geminiHistory[i].parts.isNotEmpty ? (geminiHistory[i].parts.first as TextPart).text : 'NO TEXT';
+      debugPrint('[SentraBrain] HISTORY $i ($role): $part');
+    }
+
     try {
       final response = await chat
           .sendMessage(Content.text(userMessage))
           .timeout(const Duration(seconds: 30));
 
       final text = response.text;
+      debugPrint('[SentraBrain] === RECEIVED ===');
+      debugPrint('[SentraBrain] FINISH REASON: ${response.candidates.first.finishReason}');
+      debugPrint('[SentraBrain] RAW TEXT: $text');
+      
       if (text == null || text.isEmpty) {
         return 'Maaf, tidak ada respons dari AI. Coba lagi ya 🙏';
       }
@@ -61,17 +75,23 @@ class AiService {
   }
 
   /// Parse raw string dari AI → Map JSON.
-  /// Jika bukan JSON valid, fallback ke {type: text, text: rawString}.
   static Map<String, dynamic> parseResponse(String raw) {
     try {
-      final cleaned = raw
-          .replaceAll(RegExp(r'```json\s*'), '')
-          .replaceAll(RegExp(r'```\s*'), '')
-          .trim();
-      return jsonDecode(cleaned) as Map<String, dynamic>;
-    } catch (_) {
-      return {'type': 'text', 'text': raw};
+      String clean = raw.trim();
+      if (clean.startsWith('```json')) {
+        clean = clean.replaceFirst('```json', '');
+      } else if (clean.startsWith('```')) {
+        clean = clean.replaceFirst('```', '');
+      }
+      if (clean.endsWith('```')) {
+        clean = clean.substring(0, clean.length - 3);
+      }
+      return jsonDecode(clean.trim()) as Map<String, dynamic>;
+    } catch (e) {
+      debugPrint('[SentraBrain] parse error: $e');
+      debugPrint('[SentraBrain] failed string: $raw');
     }
+    return {'type': 'text', 'text': raw};
   }
 
   static bool get isConfigured =>
