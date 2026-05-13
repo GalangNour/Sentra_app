@@ -376,6 +376,22 @@ class _InstallmentDetailScreenState extends State<InstallmentDetailScreen> {
           _summaryRow('Dibuat', Fmt.date(_plan.createdAt)),
           _divider(),
           _summaryRow('Jumlah Pembayaran', '${_payments.length} transaksi'),
+          if (_plan.monthlyAmount != null) ...[
+            _divider(),
+            _summaryRow(
+              'Cicilan/bulan',
+              _money(_plan.monthlyAmount!),
+              valueColor: AppColors.warning,
+            ),
+            _divider(),
+            _summaryRow(
+              'Estimasi selesai',
+              _isPaidOff
+                  ? 'Lunas'
+                  : '~${(_remaining / _plan.monthlyAmount!).ceil()} bulan lagi',
+              valueColor: _isPaidOff ? AppColors.income : AppColors.textMuted,
+            ),
+          ],
         ],
       ),
     );

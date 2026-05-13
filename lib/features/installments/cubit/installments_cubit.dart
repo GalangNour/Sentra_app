@@ -14,12 +14,14 @@ class InstallmentsCubit extends Cubit<InstallmentsState> {
   Future<InstallmentPlan> addInstallmentPlan({
     required String name,
     required double totalAmount,
+    double? monthlyAmount,
     String? note,
   }) async {
     final plan = InstallmentPlan(
       id: _uuid.v4(),
       name: name,
       totalAmount: totalAmount,
+      monthlyAmount: monthlyAmount,
       createdAt: DateTime.now(),
       note: note,
     );
@@ -35,12 +37,14 @@ class InstallmentsCubit extends Cubit<InstallmentsState> {
     required String id,
     required String name,
     required double totalAmount,
+    double? monthlyAmount,
     String? note,
   }) async {
     final existing = state.installmentPlans.firstWhere((p) => p.id == id);
     final updated = existing.copyWith(
       name: name,
       totalAmount: totalAmount,
+      monthlyAmount: monthlyAmount,
       note: note,
     );
     await _repository.save(updated);

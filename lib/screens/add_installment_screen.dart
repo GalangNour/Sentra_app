@@ -23,8 +23,12 @@ class AddInstallmentScreen extends StatefulWidget {
 class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
   final _nameCtrl = TextEditingController();
   final _amountCtrl = TextEditingController();
+  final _monthlyCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
   late FinanceSnapshot _snapshot;
+
+  bool _useMonthlyAmount = false;
+  int? _computedDuration;
 
   bool get _isEdit => widget.editPlan != null;
 
@@ -35,34 +39,49 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
     if (plan != null) {
       _nameCtrl.text = plan.name;
       _noteCtrl.text = plan.note ?? '';
-      final formatted = plan.totalAmount
-          .toStringAsFixed(0)
-          .replaceAllMapped(
-            RegExp(r'(\d)(?=(\d{3})+$)'),
-            (m) => '${m[1]}.',
-          );
-      _amountCtrl.text = formatted;
+      _amountCtrl.text = _formatAmount(plan.totalAmount);
+      if (plan.monthlyAmount != null) {
+        _useMonthlyAmount = true;
+        _monthlyCtrl.text = _formatAmount(plan.monthlyAmount!);
+      }
     }
+    _amountCtrl.addListener(_updateDuration);
+    _monthlyCtrl.addListener(_updateDuration);
+    _updateDuration();
   }
 
-  FinanceSnapshot _readSnapshot() {
-    return FinanceSnapshot(
-      transactions: context.read<TransactionsCubit>().state.transactions,
-      customCategories: context.read<CategoriesCubit>().state.customCategories,
-      installmentPlans: context
-          .read<InstallmentsCubit>()
-          .state
-          .installmentPlans,
-      currency: context.read<SettingsCubit>().state.currency,
-    );
+  String _formatAmount(double amount) => amount
+      .toStringAsFixed(0)
+      .replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]}.');
+
+  void _updateDuration() {
+    final total = double.tryParse(
+        _amountCtrl.text.replaceAll('.', '').replaceAll(',', ''));
+    final monthly = double.tryParse(
+        _monthlyCtrl.text.replaceAll('.', '').replaceAll(',', ''));
+    if (total != null && monthly != null && total > 0 && monthly > 0) {
+      setState(() => _computedDuration = (total / monthly).ceil());
+    } else {
+      setState(() => _computedDuration = null);
+    }
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
     _amountCtrl.dispose();
+    _monthlyCtrl.dispose();
     _noteCtrl.dispose();
     super.dispose();
+  }
+
+  FinanceSnapshot _readSnapshot() {
+    return FinanceSnapshot(
+      transactions: context.read<TransactionsCubit>().state.transactions,
+      customCategories: context.read<CategoriesCubit>().state.customCategories,
+      installmentPlans: context.read<InstallmentsCubit>().state.installmentPlans,
+      currency: context.read<SettingsCubit>().state.currency,
+    );
   }
 
   Future<void> _save() async {
@@ -75,28 +94,49 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
           content: const Text('Isi nama cicilan dan total nominal'),
           backgroundColor: AppColors.surfaceElevated,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           margin: const EdgeInsets.all(16),
         ),
       );
       return;
     }
 
+    double? monthlyAmount;
+    if (_useMonthlyAmount) {
+      monthlyAmount = double.tryParse(
+        _monthlyCtrl.text.replaceAll('.', '').replaceAll(',', ''),
+      );
+      if (monthlyAmount == null || monthlyAmount <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Isi nominal cicilan per bulan'),
+            backgroundColor: AppColors.surfaceElevated,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+        return;
+      }
+    }
+
     final cubit = context.read<InstallmentsCubit>();
-    final noteTrimmed = _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim();
+    final noteTrimmed =
+        _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim();
     if (_isEdit) {
       await cubit.editInstallmentPlan(
         id: widget.editPlan!.id,
         name: _nameCtrl.text.trim(),
         totalAmount: amount,
+        monthlyAmount: monthlyAmount,
         note: noteTrimmed,
       );
     } else {
       await cubit.addInstallmentPlan(
         name: _nameCtrl.text.trim(),
         totalAmount: amount,
+        monthlyAmount: monthlyAmount,
         note: noteTrimmed,
       );
     }
@@ -147,6 +187,7 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Total amount card
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
@@ -225,8 +266,163 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
               maxLines: 3,
               minLines: 2,
             ),
+            const SizedBox(height: 20),
+            // Monthly amount toggle section
+            _buildMonthlySection(),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildMonthlySection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _useMonthlyAmount
+              ? AppColors.warning.withAlpha(100)
+              : AppColors.surfaceBorder,
+        ),
+      ),
+      child: Column(
+        children: [
+          // Toggle row
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: _useMonthlyAmount
+                        ? AppColors.warning.withAlpha(20)
+                        : AppColors.surfaceElevated,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.calendar_month_rounded,
+                    size: 16,
+                    color: _useMonthlyAmount
+                        ? AppColors.warning
+                        : AppColors.textMuted,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Cicilan per bulan',
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        'Atur nominal yang dibayar tiap bulan',
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: _useMonthlyAmount,
+                  onChanged: (val) {
+                    HapticFeedback.lightImpact();
+                    setState(() {
+                      _useMonthlyAmount = val;
+                      if (!val) _monthlyCtrl.clear();
+                    });
+                    _updateDuration();
+                  },
+                  activeThumbColor: AppColors.warning,
+                  activeTrackColor: AppColors.warning.withAlpha(80),
+                ),
+              ],
+            ),
+          ),
+          // Expandable input when toggled on
+          if (_useMonthlyAmount) ...[
+            Divider(
+                color: AppColors.warning.withAlpha(60),
+                height: 1,
+                thickness: 1),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        _snapshot.currency.symbol,
+                        style: TextStyle(
+                          color: AppColors.warning,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _monthlyCtrl,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [ThousandsSeparatorFormatter()],
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: '0',
+                            hintStyle: TextStyle(
+                              color: AppColors.textMuted,
+                              fontSize: 22,
+                            ),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            contentPadding: EdgeInsets.zero,
+                            suffixText: '/ bulan',
+                            suffixStyle: TextStyle(
+                              color: AppColors.textMuted,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_computedDuration != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline_rounded,
+                            size: 13, color: AppColors.textMuted),
+                        const SizedBox(width: 5),
+                        Text(
+                          'Durasi cicilan: ~$_computedDuration bulan',
+                          style: TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -268,18 +464,11 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
               color: hasFocus ? focusColor : AppColors.textMuted,
             ),
           ),
-          prefixIconConstraints: const BoxConstraints(
-            minWidth: 0,
-            minHeight: 0,
-          ),
+          prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
           filled: true,
-          fillColor: hasFocus
-              ? focusColor.withAlpha(15)
-              : AppColors.surfaceCard,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
-          ),
+          fillColor: hasFocus ? focusColor.withAlpha(15) : AppColors.surfaceCard,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide.none,

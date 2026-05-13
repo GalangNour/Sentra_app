@@ -89,6 +89,12 @@ class FinanceSnapshot {
 
   double get balance => totalIncome - totalExpense;
 
+  double get totalMonthlyInstallmentBurden {
+    return activeInstallmentPlans
+        .where((p) => p.monthlyAmount != null)
+        .fold(0.0, (sum, p) => sum + p.monthlyAmount!);
+  }
+
   String categoryLabel(Transaction tx) {
     return _insights.categoryLabel(tx, customCategories);
   }

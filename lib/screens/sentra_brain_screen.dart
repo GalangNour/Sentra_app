@@ -30,24 +30,29 @@ class _SentraBrainScreenState extends State<SentraBrainScreen> {
   final ScrollController _scrollController = ScrollController();
   late String _systemContext;
 
-  static const List<String> _suggestions = [
-    'Bulan ini uang habis dimana?',
-    'Bisa nabung berapa bulan ini?',
-    'Pengeluaran makan berapa?',
-    'Kasih tips hemat untukku',
-    'Prediksi saldo akhir bulan',
-    'Kategori pengeluaran terbesar?',
+  static const List<Map<String, dynamic>> _suggestionsData = [
+    {
+      'text': 'Bulan ini uang habis dimana?',
+      'icon': Icons.account_balance_wallet_rounded,
+    },
+    {
+      'text': 'Bisa nabung motor kapan?',
+      'icon': Icons.savings_rounded,
+    },
+    {
+      'text': 'Pengeluaran makan berapa?',
+      'icon': Icons.restaurant_rounded,
+    },
+    {
+      'text': 'Aman ambil cicilan iPhone?',
+      'icon': Icons.phone_iphone_rounded,
+    },
   ];
 
   @override
   void initState() {
     super.initState();
     _systemContext = AiContextBuilder.build(widget.snapshot);
-    _messages.add(ChatMessage(
-      role: 'assistant',
-      text: 'Hai Sobat! 👋 Ada yang bisa aku bantu soal keuanganmu hari ini?',
-      timestamp: DateTime.now(),
-    ));
     if (widget.initialParsed != null) {
       _messages.add(ChatMessage(
         role: 'assistant',
@@ -99,9 +104,8 @@ class _SentraBrainScreenState extends State<SentraBrainScreen> {
       return;
     }
 
-    // Build history before adding new message (skip welcome, skip errors)
+    // Build history before adding new message (skip errors)
     final history = _messages
-        .skip(1)
         .where((m) => m.role != 'error')
         .toList();
 
@@ -165,15 +169,10 @@ class _SentraBrainScreenState extends State<SentraBrainScreen> {
     HapticFeedback.mediumImpact();
     setState(() {
       _messages.clear();
-      _messages.add(ChatMessage(
-        role: 'assistant',
-        text: 'Hai Sobat! 👋 Ada yang bisa aku bantu soal keuanganmu hari ini?',
-        timestamp: DateTime.now(),
-      ));
     });
   }
 
-  bool get _showSuggestions => _messages.length == 1 && !_isLoading;
+  bool get _showSuggestions => _messages.isEmpty && !_isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -295,10 +294,11 @@ class _SentraBrainScreenState extends State<SentraBrainScreen> {
   Widget _buildChatArea() {
     final items = <Widget>[];
 
-    for (int i = 0; i < _messages.length; i++) {
-      items.add(_buildBubble(_messages[i], i));
-      if (i == 0 && _showSuggestions) {
-        items.add(_buildSuggestions());
+    if (_showSuggestions) {
+      items.add(_buildSuggestions());
+    } else {
+      for (int i = 0; i < _messages.length; i++) {
+        items.add(_buildBubble(_messages[i], i));
       }
     }
 
@@ -455,52 +455,95 @@ class _SentraBrainScreenState extends State<SentraBrainScreen> {
 
   Widget _buildSuggestions() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: _suggestions.asMap().entries.map((entry) {
-            return TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.0, end: 1.0),
-              duration: Duration(milliseconds: 250 + entry.key * 60),
-              curve: Curves.easeOut,
-              builder: (_, v, child) =>
-                  Opacity(opacity: v, child: child),
-              child: Padding(
-                padding: EdgeInsets.only(
-                  right: 8,
-                  left: entry.key == 0 ? 0 : 0,
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Hai Sobat Sentra! 👋',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Ada yang bisa aku bantu hari ini?',
+            style: TextStyle(
+              fontSize: 16,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 32),
+          ..._suggestionsData.asMap().entries.map((entry) {
+            return _buildSuggestionCard(entry.value, entry.key);
+          }).toList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSuggestionCard(Map<String, dynamic> data, int index) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 300 + index * 100),
+      curve: Curves.easeOut,
+      builder: (_, v, child) => Opacity(
+        opacity: v,
+        child: Transform.translate(
+          offset: Offset(0, 10 * (1 - v)),
+          child: child,
+        ),
+      ),
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          _sendMessage(data['text'] as String);
+        },
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceCard,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.surfaceBorder, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.02),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withAlpha(25),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: GestureDetector(
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    _sendMessage(entry.value);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withAlpha(20),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: AppColors.primary.withAlpha(50),
-                      ),
-                    ),
-                    child: Text(
-                      entry.value,
-                      style: TextStyle(
-                        color: AppColors.primaryLight,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                child: Icon(
+                  data['icon'] as IconData,
+                  color: AppColors.primary,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  data['text'] as String,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
                   ),
                 ),
               ),
-            );
-          }).toList(),
+            ],
+          ),
         ),
       ),
     );
