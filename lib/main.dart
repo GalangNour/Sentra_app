@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:sentra_app/core/repositories/budget_repository.dart';
 import 'package:sentra_app/core/repositories/custom_category_repository.dart';
 import 'package:sentra_app/core/repositories/installment_plan_repository.dart';
 import 'package:sentra_app/core/repositories/settings_repository.dart';
 import 'package:sentra_app/core/repositories/transaction_repository.dart';
 import 'package:sentra_app/core/services/app_storage.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
+import 'package:sentra_app/features/budgets/cubit/budgets_cubit.dart';
 import 'package:sentra_app/features/categories/cubit/categories_cubit.dart';
 import 'package:sentra_app/features/installments/cubit/installments_cubit.dart';
 import 'package:sentra_app/features/settings/cubit/settings_cubit.dart';
@@ -44,6 +46,9 @@ class SentraApp extends StatelessWidget {
         RepositoryProvider(
           create: (_) => SettingsRepository(storage.settingsBox),
         ),
+        RepositoryProvider(
+          create: (_) => BudgetRepository(storage.budgetsBox),
+        ),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -62,6 +67,10 @@ class SentraApp extends StatelessWidget {
           BlocProvider(
             create: (context) =>
                 InstallmentsCubit(context.read<InstallmentPlanRepository>()),
+          ),
+          BlocProvider(
+            create: (context) =>
+                BudgetsCubit(context.read<BudgetRepository>()),
           ),
         ],
         child: BlocBuilder<SettingsCubit, SettingsState>(

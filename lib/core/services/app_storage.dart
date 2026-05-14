@@ -7,6 +7,7 @@ class AppStorage {
     required this.installmentPlansBox,
     required this.settingsBox,
     required this.insightsBox,
+    required this.budgetsBox,
   });
 
   final Box transactionsBox;
@@ -14,6 +15,7 @@ class AppStorage {
   final Box installmentPlansBox;
   final Box settingsBox;
   final Box insightsBox;
+  final Box budgetsBox;
 
   static Future<AppStorage> init() async {
     await Hive.initFlutter();
@@ -24,6 +26,7 @@ class AppStorage {
       installmentPlansBox: await Hive.openBox('installmentPlans'),
       settingsBox: await Hive.openBox('settings'),
       insightsBox: await Hive.openBox('ai_insights'),
+      budgetsBox: await Hive.openBox('budgets'),
     );
   }
 }

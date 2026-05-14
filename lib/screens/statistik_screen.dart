@@ -5,11 +5,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sentra_app/core/services/finance_snapshot.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
+import 'package:sentra_app/features/budgets/cubit/budgets_cubit.dart';
 import 'package:sentra_app/features/categories/cubit/categories_cubit.dart';
 import 'package:sentra_app/features/installments/cubit/installments_cubit.dart';
 import 'package:sentra_app/features/settings/cubit/settings_cubit.dart';
 import 'package:sentra_app/features/transactions/cubit/transactions_cubit.dart';
 import 'package:sentra_app/screens/activity_screen.dart';
+import 'package:sentra_app/screens/budget_screen.dart';
 import 'package:sentra_app/screens/sentra_brain_screen.dart';
 
 class StatistikScreen extends StatefulWidget {
@@ -52,6 +54,7 @@ class _StatistikScreenState extends State<StatistikScreen> {
     final installmentPlans =
         context.watch<InstallmentsCubit>().state.installmentPlans;
     final currency = context.watch<SettingsCubit>().state.currency;
+    final budgets = context.watch<BudgetsCubit>().state.budgets;
     final range = _dateRange;
 
     final filteredTransactions = _activePeriod == 'Semua'
@@ -66,6 +69,7 @@ class _StatistikScreenState extends State<StatistikScreen> {
       customCategories: customCategories,
       installmentPlans: installmentPlans,
       currency: currency,
+      budgets: budgets,
     );
     snapshot.applyCurrency();
 
@@ -150,6 +154,10 @@ class _StatistikScreenState extends State<StatistikScreen> {
             const SizedBox(height: 20),
             _buildCategorySection(
                 sorted, catColors, catIcons, grandTotal, snapshot),
+            if (snapshot.budgetsThisMonth.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              _buildBudgetSection(context, snapshot, customCategories),
+            ],
             const SizedBox(height: 20),
             _buildTrendSection(trendData),
             const SizedBox(height: 20),
@@ -1053,5 +1061,159 @@ class _StatistikScreenState extends State<StatistikScreen> {
     final startOfYear = DateTime(date.year, 1, 1);
     final diff = date.difference(startOfYear).inDays;
     return (diff / 7).ceil();
+  }
+
+  Widget _buildBudgetSection(
+    BuildContext context,
+    FinanceSnapshot snapshot,
+    List<CustomCategory> customCategories,
+  ) {
+    final budgets = snapshot.budgetsThisMonth;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Budget vs Aktual',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                HapticFeedback.mediumImpact();
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const BudgetScreen()),
+                );
+              },
+              child: Text(
+                'Kelola',
+                style: TextStyle(color: AppColors.primary),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceCard,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.surfaceBorder),
+          ),
+          child: Column(
+            children: [
+              for (int i = 0; i < budgets.length; i++) ...[
+                if (i > 0) ...[
+                  const SizedBox(height: 4),
+                  Divider(color: AppColors.surfaceBorder, height: 16),
+                ],
+                _buildBudgetRow(snapshot, budgets[i], customCategories),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBudgetRow(
+    FinanceSnapshot snapshot,
+    BudgetItem budget,
+    List<CustomCategory> customCategories,
+  ) {
+    final progress = snapshot.budgetProgress(budget);
+    final spent = snapshot.spentForBudget(budget);
+    final color = progress > 1
+        ? AppColors.expense
+        : progress > 0.8
+        ? AppColors.warning
+        : AppColors.income;
+
+    String label;
+    IconData icon;
+    Color catColor;
+
+    if (budget.customCategoryId != null) {
+      final custom = customCategories.firstWhere(
+        (c) => c.id == budget.customCategoryId,
+        orElse: () => CustomCategory(
+          id: '',
+          name: 'Kustom',
+          iconCode: Icons.label_rounded.codePoint,
+          fontFamily: 'MaterialIcons',
+          colorValue: AppColors.primary.toARGB32(),
+          type: TransactionType.expense,
+        ),
+      );
+      label = custom.name;
+      icon = custom.icon;
+      catColor = custom.color;
+    } else {
+      label = CategoryMeta.label(budget.category!);
+      icon = CategoryMeta.icon(budget.category!);
+      catColor = CategoryMeta.color(budget.category!);
+    }
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: catColor.withAlpha(26),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: catColor, size: 16),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Text(
+              Fmt.compact(spent),
+              style: TextStyle(
+                color: color,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Text(
+              ' / ${Fmt.compact(budget.limit)}',
+              style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: progress.clamp(0.0, 1.0)),
+            duration: const Duration(milliseconds: 700),
+            curve: Curves.easeOut,
+            builder: (_, v, _) => LinearProgressIndicator(
+              value: v,
+              backgroundColor: AppColors.surfaceElevated,
+              valueColor: AlwaysStoppedAnimation(color),
+              minHeight: 5,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }

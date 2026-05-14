@@ -42,6 +42,103 @@ class AiContextBuilder {
 
     final totalSaldo = Fmt.full(snapshot.balance);
 
+    // ── Weekly anomaly context ──────────────────────────────────────────────
+    final weekday = now.weekday; // 1=Mon … 7=Sun
+    final weekStart = DateTime(now.year, now.month, now.day - (weekday - 1));
+    final fourWeeksAgo = weekStart.subtract(const Duration(days: 28));
+
+    final thisWeekExpenses = snapshot.transactions.where(
+      (tx) =>
+          tx.type == TransactionType.expense &&
+          !tx.date.isBefore(weekStart) &&
+          tx.date.isBefore(now.add(const Duration(days: 1))),
+    ).toList();
+
+    final double thisWeekTotal =
+        thisWeekExpenses.fold(0.0, (s, tx) => s + tx.amount);
+
+    final Map<String, double> thisWeekCat = {};
+    for (final tx in thisWeekExpenses) {
+      final label = snapshot.categoryLabel(tx);
+      thisWeekCat[label] = (thisWeekCat[label] ?? 0) + tx.amount;
+    }
+
+    final priorExpenses = snapshot.transactions.where(
+      (tx) =>
+          tx.type == TransactionType.expense &&
+          !tx.date.isBefore(fourWeeksAgo) &&
+          tx.date.isBefore(weekStart),
+    ).toList();
+
+    final Map<String, double> priorCatTotal = {};
+    for (final tx in priorExpenses) {
+      final label = snapshot.categoryLabel(tx);
+      priorCatTotal[label] = (priorCatTotal[label] ?? 0) + tx.amount;
+    }
+
+    final Map<String, double> weeklyAvgCat =
+        priorCatTotal.map((k, v) => MapEntry(k, v / 4.0));
+
+    // Build display lines for weekly category data
+    final sortedThisWeek = thisWeekCat.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final weekCatLines = sortedThisWeek.isEmpty
+        ? '(belum ada pengeluaran minggu ini)'
+        : sortedThisWeek
+            .map((e) => '- ${e.key}: ${Fmt.full(e.value)}')
+            .join('\n');
+
+    final sortedAvg = weeklyAvgCat.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final avgCatLines = sortedAvg.isEmpty
+        ? '(belum ada data 4 minggu terakhir)'
+        : sortedAvg
+            .map((e) => '- ${e.key}: ${Fmt.compact(e.value)}/minggu')
+            .join('\n');
+
+    // Detect anomalies
+    final anomalies = <String>[];
+
+    // Rule 1: kategori naik >50% dari rata-rata mingguan
+    for (final entry in thisWeekCat.entries) {
+      final cat = entry.key;
+      final thisWeek = entry.value;
+      final avg = weeklyAvgCat[cat] ?? 0;
+      if (avg > 0 && thisWeek > avg * 1.5) {
+        final pct = ((thisWeek / avg - 1) * 100).toStringAsFixed(0);
+        anomalies.add(
+          '⚠ Lonjakan $cat +$pct% dari rata-rata (${Fmt.compact(avg)}/minggu → ${Fmt.compact(thisWeek)} minggu ini)',
+        );
+      }
+    }
+
+    // Rule 2: kategori baru tiba-tiba masuk top 3 minggu ini
+    for (int i = 0; i < sortedThisWeek.length && i < 3; i++) {
+      final cat = sortedThisWeek[i].key;
+      if (!weeklyAvgCat.containsKey(cat)) {
+        anomalies.add(
+          '🆕 $cat muncul dominan minggu ini (${Fmt.compact(thisWeekCat[cat]!)}) — tidak ada di 4 minggu sebelumnya',
+        );
+      }
+    }
+
+    // Rule 3: transaksi tunggal >30% dari total pengeluaran minggu ini
+    if (thisWeekTotal > 0) {
+      for (final tx in thisWeekExpenses) {
+        if (tx.amount / thisWeekTotal > 0.30) {
+          final pct = (tx.amount / thisWeekTotal * 100).toStringAsFixed(0);
+          anomalies.add(
+            '💸 "${tx.title}" (${Fmt.compact(tx.amount)}) = $pct% dari total pengeluaran minggu ini',
+          );
+        }
+      }
+    }
+
+    final anomalyLines = anomalies.isEmpty
+        ? '(tidak ada anomali terdeteksi)'
+        : anomalies.join('\n');
+    // ───────────────────────────────────────────────────────────────────────
+
     return '''Kamu adalah Sentra Brain, asisten keuangan pribadi di aplikasi Sentra milik user ini.
 
 RINGKASAN KEUANGAN BULAN INI (${_monthName(now.month)} ${now.year}):
@@ -56,12 +153,22 @@ $catLines
 10 TRANSAKSI TERBARU:
 $txLines
 
+PENGELUARAN MINGGU INI PER KATEGORI (total: ${Fmt.full(thisWeekTotal)}):
+$weekCatLines
+
+RATA-RATA PENGELUARAN 4 MINGGU TERAKHIR PER KATEGORI:
+$avgCatLines
+
+ANOMALI TERDETEKSI MINGGU INI:
+$anomalyLines
+
 INSTRUKSI TONE DAN GAYA:
 - Gunakan bahasa Indonesia yang santai, ramah, dan mudah dipahami
 - Berikan saran yang spesifik berdasarkan data keuangan user di atas
 - Jawab SANGAT SINGKAT, padat, dan to-the-point (maksimal 2-3 paragraf pendek)
 - JANGAN menjabarkan atau menganalisis semua transaksi/kategori satu per satu. Fokus hanya pada 1-2 hal yang paling krusial.
 - Berikan saran yang actionable dan konkret berdasarkan angka dari data user.
+- Jika ada anomali di atas, sebutkan secara proaktif meski user tidak tanya — tapi tetap singkat.
 - Jika diminta prediksi atau estimasi, jelaskan asumsi secara ringkas.
 - Gunakan emoji secukupnya agar terasa natural dan tidak berlebihan
 

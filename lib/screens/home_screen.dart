@@ -4,11 +4,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sentra_app/core/services/finance_snapshot.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
+import 'package:sentra_app/features/budgets/cubit/budgets_cubit.dart';
 import 'package:sentra_app/features/categories/cubit/categories_cubit.dart';
 import 'package:sentra_app/features/installments/cubit/installments_cubit.dart';
 import 'package:sentra_app/features/settings/cubit/settings_cubit.dart';
 import 'package:sentra_app/features/transactions/cubit/transactions_cubit.dart';
 import 'package:sentra_app/screens/add_transaction_screen.dart';
+import 'package:sentra_app/screens/budget_screen.dart';
 import 'package:sentra_app/screens/installments_list_screen.dart';
 import 'package:sentra_app/screens/sentra_brain_screen.dart';
 import 'package:sentra_app/widgets/insight_section.dart';
@@ -32,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
           .state
           .installmentPlans,
       currency: context.watch<SettingsCubit>().state.currency,
+      budgets: context.watch<BudgetsCubit>().state.budgets,
     );
   }
 
@@ -101,6 +104,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(child: _buildBalanceCard()),
+        SliverToBoxAdapter(child: _buildBudgetSummaryCard()),
         SliverToBoxAdapter(child: _buildQuickAdd()),
         SliverToBoxAdapter(child: _buildSentraBrainCard()),
         SliverToBoxAdapter(
@@ -315,6 +319,188 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildBudgetSummaryCard() {
+    final budgets = _snapshot.budgetsThisMonth;
+    final critical = _snapshot.criticalBudgets.take(2).toList();
+    final customCategories =
+        context.read<CategoriesCubit>().state.customCategories;
+
+    final hasCritical = critical.isNotEmpty;
+    final hasBudgets = budgets.isNotEmpty;
+
+    final Color accentColor = hasCritical
+        ? (_snapshot.budgetProgress(critical.first) > 1
+              ? AppColors.expense
+              : AppColors.warning)
+        : AppColors.primary;
+
+    final String title = hasCritical
+        ? 'Perhatian Budget'
+        : hasBudgets
+        ? 'Budget Bulan Ini'
+        : 'Budget';
+
+    final String subtitle = hasCritical
+        ? '${critical.length} kategori hampir/melebihi limit'
+        : hasBudgets
+        ? '${budgets.length} kategori diatur'
+        : 'Atur limit pengeluaran per kategori';
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const BudgetScreen()),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceCard,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: accentColor.withAlpha(60)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: accentColor.withAlpha(26),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: accentColor.withAlpha(64)),
+                  ),
+                  child: Icon(
+                    Icons.account_balance_wallet_rounded,
+                    color: accentColor,
+                    size: 16,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: AppColors.textMuted,
+                  size: 12,
+                ),
+              ],
+            ),
+            if (hasCritical) ...[
+              const SizedBox(height: 14),
+              for (int i = 0; i < critical.length; i++) ...[
+                if (i > 0) const SizedBox(height: 10),
+                _budgetMiniRow(critical[i], customCategories),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _budgetMiniRow(
+    BudgetItem budget,
+    List<CustomCategory> customCategories,
+  ) {
+    final progress = _snapshot.budgetProgress(budget);
+    final color = progress > 1 ? AppColors.expense : AppColors.warning;
+
+    String label;
+    IconData icon;
+    Color catColor;
+
+    if (budget.customCategoryId != null) {
+      final custom = customCategories.firstWhere(
+        (c) => c.id == budget.customCategoryId,
+        orElse: () => CustomCategory(
+          id: '',
+          name: 'Kustom',
+          iconCode: Icons.label_rounded.codePoint,
+          fontFamily: 'MaterialIcons',
+          colorValue: AppColors.primary.toARGB32(),
+          type: TransactionType.expense,
+        ),
+      );
+      label = custom.name;
+      icon = custom.icon;
+      catColor = custom.color;
+    } else {
+      label = CategoryMeta.label(budget.category!);
+      icon = CategoryMeta.icon(budget.category!);
+      catColor = CategoryMeta.color(budget.category!);
+    }
+
+    return Row(
+      children: [
+        Icon(icon, color: catColor, size: 14),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    '${(progress * 100).toStringAsFixed(0)}%',
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: LinearProgressIndicator(
+                  value: progress.clamp(0.0, 1.0),
+                  backgroundColor: AppColors.surfaceElevated,
+                  valueColor: AlwaysStoppedAnimation(color),
+                  minHeight: 4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

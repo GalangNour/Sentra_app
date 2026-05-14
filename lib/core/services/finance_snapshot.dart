@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sentra_app/core/models/budget_item.dart';
 import 'package:sentra_app/core/models/currency_info.dart';
 import 'package:sentra_app/core/models/custom_category.dart';
 import 'package:sentra_app/core/models/installment_plan.dart';
@@ -12,12 +13,14 @@ class FinanceSnapshot {
     required this.customCategories,
     required this.installmentPlans,
     required this.currency,
+    this.budgets = const [],
   });
 
   final List<Transaction> transactions;
   final List<CustomCategory> customCategories;
   final List<InstallmentPlan> installmentPlans;
   final CurrencyInfo currency;
+  final List<BudgetItem> budgets;
 
   static const FinanceInsightsService _insights = FinanceInsightsService();
 
@@ -105,5 +108,43 @@ class FinanceSnapshot {
 
   Color categoryColor(Transaction tx) {
     return _insights.categoryColor(tx, customCategories);
+  }
+
+  bool _txMatchesBudget(Transaction tx, BudgetItem budget) {
+    if (tx.type != TransactionType.expense) return false;
+    if (budget.customCategoryId != null) {
+      return tx.customCategoryId == budget.customCategoryId;
+    }
+    return tx.customCategoryId == null && tx.category == budget.category;
+  }
+
+  double spentForBudget(BudgetItem budget) {
+    return transactions
+        .where(
+          (tx) =>
+              tx.date.month == budget.month &&
+              tx.date.year == budget.year &&
+              _txMatchesBudget(tx, budget),
+        )
+        .fold(0.0, (sum, tx) => sum + tx.amount);
+  }
+
+  double budgetProgress(BudgetItem budget) {
+    if (budget.limit <= 0) return 0;
+    return spentForBudget(budget) / budget.limit;
+  }
+
+  List<BudgetItem> get budgetsThisMonth {
+    final now = DateTime.now();
+    return budgets
+        .where((b) => b.month == now.month && b.year == now.year)
+        .toList();
+  }
+
+  List<BudgetItem> get criticalBudgets {
+    return budgetsThisMonth
+        .where((b) => budgetProgress(b) > 0.8)
+        .toList()
+      ..sort((a, b) => budgetProgress(b).compareTo(budgetProgress(a)));
   }
 }
