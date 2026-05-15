@@ -4,10 +4,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sentra_app/core/models/currency_info.dart';
 import 'package:sentra_app/core/models/custom_category.dart';
 import 'package:sentra_app/core/models/transaction.dart';
+import 'package:sentra_app/core/repositories/recap_repository.dart';
+import 'package:sentra_app/core/services/recap_service.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/features/categories/cubit/categories_cubit.dart';
 import 'package:sentra_app/features/settings/cubit/settings_cubit.dart';
 import 'package:sentra_app/features/transactions/cubit/transactions_cubit.dart';
+import 'package:sentra_app/screens/weekly_recap_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -25,6 +28,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late SettingsCubit _settingsCubit;
   late CategoriesCubit _categoriesCubit;
   late TransactionsCubit _transactionsCubit;
+  late RecapRepository _recapRepo;
 
   // ─── Build ─────────────────────────────────────────────
 
@@ -35,6 +39,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _settingsCubit = context.read<SettingsCubit>();
     _categoriesCubit = context.read<CategoriesCubit>();
     _transactionsCubit = context.read<TransactionsCubit>();
+    _recapRepo = context.read<RecapRepository>();
     _currency = settingsState.currency;
     _themePreset = settingsState.themePreset;
     _accent = settingsState.accent;
@@ -81,6 +86,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _sectionLabel('Kategori Kustom'),
           _buildCustomCategoryList(),
           _buildAddCategoryButton(),
+          const SizedBox(height: 24),
+          _sectionLabel('Rekap Mingguan'),
+          _buildRecapDayTile(),
+          const SizedBox(height: 8),
+          _buildRecapTestTile(),
           const SizedBox(height: 24),
           _sectionLabel('Data'),
           _buildClearDataTile(),
@@ -1057,6 +1067,121 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
     );
+  }
+
+  // ─── Recap ──────────────────────────────────────────────
+
+  static const _dayNames = ['', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+
+  Widget _buildRecapDayTile() {
+    final day = _recapRepo.getRecapDay();
+    return _tile(
+      icon: Icons.calendar_today_rounded,
+      iconColor: AppColors.primary,
+      title: 'Hari Rekap Mingguan',
+      subtitle: _dayNames[day],
+      trailing: Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+      onTap: _showRecapDayPicker,
+    );
+  }
+
+  Widget _buildRecapTestTile() {
+    return _tile(
+      icon: Icons.play_circle_outline_rounded,
+      iconColor: AppColors.warning,
+      title: 'Coba Rekap Sekarang',
+      subtitle: 'Tampilkan rekap mingguan untuk testing',
+      onTap: _triggerTestRecap,
+    );
+  }
+
+  void _showRecapDayPicker() {
+    final current = _recapRepo.getRecapDay();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setS) => Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 12, bottom: 4),
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceBorder,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Hari Rekap Mingguan',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Divider(color: AppColors.surfaceBorder, height: 1),
+              // Days 1-7 (Senin-Minggu)
+              ...List.generate(7, (i) {
+                final dayIndex = i + 1;
+                final isSelected = dayIndex == current;
+                return ListTile(
+                  tileColor: isSelected ? AppColors.primary.withAlpha(18) : null,
+                  title: Text(
+                    _dayNames[dayIndex],
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                  ),
+                  trailing: isSelected
+                      ? Icon(Icons.check_circle_rounded, color: AppColors.primary)
+                      : null,
+                  onTap: () async {
+                    HapticFeedback.selectionClick();
+                    await _recapRepo.setRecapDay(dayIndex);
+                    if (mounted) setState(() {}); // refresh tile
+                    if (ctx.mounted) Navigator.of(ctx).pop();
+                  },
+                );
+              }),
+              SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _triggerTestRecap() async {
+    HapticFeedback.mediumImpact();
+    await _recapRepo.triggerTest();
+    if (!mounted) return;
+    final transactions = _transactionsCubit.state.transactions;
+    final customCategories = _categoriesCubit.state.customCategories;
+    final recapData = RecapService.compute(
+      transactions: transactions,
+      customCategories: customCategories,
+    );
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => WeeklyRecapScreen(
+          recapData: recapData,
+          recapRepository: _recapRepo,
+        ),
+      ),
+    );
+    if (mounted) setState(() {}); // refresh day tile after returning
   }
 
   // ─── Clear Data ─────────────────────────────────────────

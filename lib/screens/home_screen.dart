@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:sentra_app/core/repositories/recap_repository.dart';
 import 'package:sentra_app/core/services/finance_snapshot.dart';
+import 'package:sentra_app/core/services/recap_service.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
 import 'package:sentra_app/features/budgets/cubit/budgets_cubit.dart';
@@ -13,6 +15,7 @@ import 'package:sentra_app/screens/add_transaction_screen.dart';
 import 'package:sentra_app/screens/budget_screen.dart';
 import 'package:sentra_app/screens/installments_list_screen.dart';
 import 'package:sentra_app/screens/sentra_brain_screen.dart';
+import 'package:sentra_app/screens/weekly_recap_screen.dart';
 import 'package:sentra_app/widgets/insight_section.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -24,6 +27,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late FinanceSnapshot _snapshot;
+  bool _showRecapBanner = false;
 
   FinanceSnapshot _watchSnapshot() {
     return FinanceSnapshot(
@@ -41,6 +45,35 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkRecap());
+  }
+
+  void _checkRecap() {
+    if (!mounted) return;
+    final available = context.read<RecapRepository>().isRecapAvailable();
+    if (available != _showRecapBanner) {
+      setState(() => _showRecapBanner = available);
+    }
+  }
+
+  Future<void> _openRecap() async {
+    HapticFeedback.mediumImpact();
+    final transactions = context.read<TransactionsCubit>().state.transactions;
+    final customCategories = context.read<CategoriesCubit>().state.customCategories;
+    final recapData = RecapService.compute(
+      transactions: transactions,
+      customCategories: customCategories,
+    );
+    final recapRepo = context.read<RecapRepository>();
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => WeeklyRecapScreen(
+          recapData: recapData,
+          recapRepository: recapRepo,
+        ),
+      ),
+    );
+    _checkRecap();
   }
 
   Future<void> _openAddTransaction({
@@ -100,9 +133,73 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ─── HOME TAB ────────────────────────────────────────────
 
+  Widget _buildRecapBanner() {
+    return GestureDetector(
+      onTap: _openRecap,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF6C63FF), Color(0xFF38BDF8)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF6C63FF).withAlpha(80),
+              blurRadius: 20,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white.withAlpha(35),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: const Icon(Icons.bar_chart_rounded, color: Colors.white, size: 22),
+            ),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Rekap Mingguan Siap!',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Lihat ringkasan keuangan 7 hari terakhir',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 14),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildHomeTab() {
     return CustomScrollView(
       slivers: [
+        if (_showRecapBanner) SliverToBoxAdapter(child: _buildRecapBanner()),
         SliverToBoxAdapter(child: _buildBalanceCard()),
         SliverToBoxAdapter(child: _buildBudgetSummaryCard()),
         SliverToBoxAdapter(child: _buildQuickAdd()),

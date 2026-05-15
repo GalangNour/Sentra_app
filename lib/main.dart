@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sentra_app/core/repositories/budget_repository.dart';
 import 'package:sentra_app/core/repositories/custom_category_repository.dart';
 import 'package:sentra_app/core/repositories/installment_plan_repository.dart';
+import 'package:sentra_app/core/repositories/recap_repository.dart';
 import 'package:sentra_app/core/repositories/settings_repository.dart';
 import 'package:sentra_app/core/repositories/transaction_repository.dart';
 import 'package:sentra_app/core/services/app_storage.dart';
@@ -48,6 +49,9 @@ class SentraApp extends StatelessWidget {
         ),
         RepositoryProvider(
           create: (_) => BudgetRepository(storage.budgetsBox),
+        ),
+        RepositoryProvider(
+          create: (_) => RecapRepository(storage.prefs),
         ),
       ],
       child: MultiBlocProvider(
