@@ -21,9 +21,53 @@ class StatistikScreen extends StatefulWidget {
   State<StatistikScreen> createState() => _StatistikScreenState();
 }
 
-class _StatistikScreenState extends State<StatistikScreen> {
+class _StatistikScreenState extends State<StatistikScreen>
+    with SingleTickerProviderStateMixin {
   String _activePeriod = '30 Hari';
   int _touchedPieIndex = -1;
+
+  late final AnimationController _entranceCtrl;
+  late final List<Animation<double>> _entAnims;
+
+  @override
+  void initState() {
+    super.initState();
+    _entranceCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 950),
+    )..forward();
+    _entAnims = List.generate(
+      8,
+      (i) => CurvedAnimation(
+        parent: _entranceCtrl,
+        curve: Interval(
+          (i * 0.07).clamp(0.0, 0.55),
+          (i * 0.07 + 0.42).clamp(0.0, 1.0),
+          curve: Curves.easeOutCubic,
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _entranceCtrl.dispose();
+    super.dispose();
+  }
+
+  Widget _animated(Widget child, int index) {
+    final anim = _entAnims[index];
+    return FadeTransition(
+      opacity: anim,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.05),
+          end: Offset.zero,
+        ).animate(anim),
+        child: child,
+      ),
+    );
+  }
 
   DateTimeRange get _dateRange {
     final now = DateTime.now();
@@ -143,28 +187,38 @@ class _StatistikScreenState extends State<StatistikScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildPeriodFilter(),
+            _animated(_buildPeriodFilter(), 0),
             const SizedBox(height: 16),
-            _buildSummaryCard(
-                income, expense, savings, incomeChangePct, expenseChangePct),
+            _animated(
+              _buildSummaryCard(
+                  income, expense, savings, incomeChangePct, expenseChangePct),
+              1,
+            ),
             if (installmentSnapshot.totalMonthlyInstallmentBurden > 0) ...[
               const SizedBox(height: 20),
-              _buildInstallmentBurdenCard(installmentSnapshot),
+              _animated(_buildInstallmentBurdenCard(installmentSnapshot), 2),
             ],
             const SizedBox(height: 20),
-            _buildCategorySection(
-                sorted, catColors, catIcons, grandTotal, snapshot),
+            _animated(
+              _buildCategorySection(
+                  sorted, catColors, catIcons, grandTotal, snapshot),
+              3,
+            ),
             if (snapshot.budgetsThisMonth.isNotEmpty) ...[
               const SizedBox(height: 20),
-              _buildBudgetSection(context, snapshot, customCategories),
+              _animated(
+                  _buildBudgetSection(context, snapshot, customCategories), 4),
             ],
             const SizedBox(height: 20),
-            _buildTrendSection(trendData),
+            _animated(_buildTrendSection(trendData), 5),
             const SizedBox(height: 20),
-            _buildInsightBanner(context, snapshot),
+            _animated(_buildInsightBanner(context, snapshot), 6),
             const SizedBox(height: 20),
-            _buildHealthScore(
-                healthScore, controlScore, savingScore, consistencyScore),
+            _animated(
+              _buildHealthScore(
+                  healthScore, controlScore, savingScore, consistencyScore),
+              7,
+            ),
             const SizedBox(height: 24),
           ],
         ),
@@ -309,14 +363,20 @@ class _StatistikScreenState extends State<StatistikScreen> {
                         color: AppColors.textSecondary, fontSize: 13),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    Fmt.full(savings),
-                    style: TextStyle(
-                      color: savings >= 0
-                          ? AppColors.income
-                          : AppColors.expense,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
+                  TweenAnimationBuilder<double>(
+                    key: ValueKey(savings),
+                    tween: Tween(begin: 0.0, end: savings),
+                    duration: const Duration(milliseconds: 900),
+                    curve: Curves.easeOutCubic,
+                    builder: (_, v, _) => Text(
+                      Fmt.full(v),
+                      style: TextStyle(
+                        color: savings >= 0
+                            ? AppColors.income
+                            : AppColors.expense,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ],
@@ -330,14 +390,20 @@ class _StatistikScreenState extends State<StatistikScreen> {
                         color: AppColors.textSecondary, fontSize: 12),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    '${savingsRate.toStringAsFixed(1)}%',
-                    style: TextStyle(
-                      color: savings >= 0
-                          ? AppColors.income
-                          : AppColors.expense,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
+                  TweenAnimationBuilder<double>(
+                    key: ValueKey(savingsRate),
+                    tween: Tween(begin: 0.0, end: savingsRate),
+                    duration: const Duration(milliseconds: 900),
+                    curve: Curves.easeOutCubic,
+                    builder: (_, v, _) => Text(
+                      '${v.toStringAsFixed(1)}%',
+                      style: TextStyle(
+                        color: savings >= 0
+                            ? AppColors.income
+                            : AppColors.expense,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ],
@@ -373,10 +439,16 @@ class _StatistikScreenState extends State<StatistikScreen> {
         children: [
           Icon(icon, color: color, size: 20),
           const SizedBox(height: 10),
-          Text(
-            Fmt.compact(amount),
-            style: TextStyle(
-                color: color, fontSize: 20, fontWeight: FontWeight.w800),
+          TweenAnimationBuilder<double>(
+            key: ValueKey(amount),
+            tween: Tween(begin: 0.0, end: amount),
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.easeOutCubic,
+            builder: (_, v, _) => Text(
+              Fmt.compact(v),
+              style: TextStyle(
+                  color: color, fontSize: 20, fontWeight: FontWeight.w800),
+            ),
           ),
           const SizedBox(height: 2),
           Text(label, style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
@@ -960,12 +1032,18 @@ class _StatistikScreenState extends State<StatistikScreen> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(
-              '$healthScore',
-              style: TextStyle(
-                  color: scoreColor,
-                  fontSize: 40,
-                  fontWeight: FontWeight.w800),
+            TweenAnimationBuilder<int>(
+              key: ValueKey(healthScore),
+              tween: IntTween(begin: 0, end: healthScore),
+              duration: const Duration(milliseconds: 800),
+              curve: Curves.easeOutCubic,
+              builder: (_, v, _) => Text(
+                '$v',
+                style: TextStyle(
+                    color: scoreColor,
+                    fontSize: 40,
+                    fontWeight: FontWeight.w800),
+              ),
             ),
             const SizedBox(width: 4),
             Column(

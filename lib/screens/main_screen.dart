@@ -18,20 +18,20 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const ActivityScreen(),
-    const SizedBox.shrink(),
-    const StatistikScreen(),
-    const SettingsScreen(),
-  ];
+  // null = belum pernah dibuka; dibuat sekali saat user pertama kali ke tab statistik
+  Widget? _statistikScreen;
 
   void _onNavTap(int index) {
     if (index == 2) {
       AiModalSheet.show(context);
       return;
     }
-    setState(() => _currentIndex = index);
+    setState(() {
+      if (index == 3 && _statistikScreen == null) {
+        _statistikScreen = const StatistikScreen();
+      }
+      _currentIndex = index;
+    });
   }
 
   @override
@@ -40,7 +40,13 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
-        children: _screens,
+        children: [
+          const HomeScreen(),
+          const ActivityScreen(),
+          const SizedBox.shrink(),
+          _statistikScreen ?? const SizedBox.shrink(),
+          const SettingsScreen(),
+        ],
       ),
       bottomNavigationBar: MainBottomNav(
         currentIndex: _currentIndex,

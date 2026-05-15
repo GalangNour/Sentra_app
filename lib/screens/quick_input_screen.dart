@@ -18,7 +18,7 @@ class QuickInputScreen extends StatefulWidget {
 }
 
 class _QuickInputScreenState extends State<QuickInputScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final _ctrl = TextEditingController();
   final _voice = VoiceInputService();
 
@@ -28,8 +28,10 @@ class _QuickInputScreenState extends State<QuickInputScreen>
   bool _isListening = false;
   bool _speechAvailable = false;
   double _soundLevel = 0.0;
+  bool _isButtonPressed = false;
 
   late final AnimationController _waveCtrl;
+  late final AnimationController _loadingCtrl;
 
   @override
   void initState() {
@@ -42,6 +44,10 @@ class _QuickInputScreenState extends State<QuickInputScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     )..repeat();
+    _loadingCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    );
     _initVoice();
   }
 
@@ -59,6 +65,7 @@ class _QuickInputScreenState extends State<QuickInputScreen>
   void dispose() {
     _ctrl.dispose();
     _waveCtrl.dispose();
+    _loadingCtrl.dispose();
     _voice.cancel();
     super.dispose();
   }
@@ -129,6 +136,7 @@ class _QuickInputScreenState extends State<QuickInputScreen>
 
     HapticFeedback.mediumImpact();
     setState(() => _loading = true);
+    if (_useAI) _loadingCtrl.repeat();
 
     try {
       final results = await QuickParseService.parse(text, useAI: _useAI);
@@ -157,7 +165,11 @@ class _QuickInputScreenState extends State<QuickInputScreen>
         ),
       );
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        _loadingCtrl.stop();
+        _loadingCtrl.reset();
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -611,77 +623,175 @@ class _QuickInputScreenState extends State<QuickInputScreen>
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
       child: GestureDetector(
-        onTap: active ? _submit : null,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          decoration: BoxDecoration(
-            gradient: active ? AppColors.primaryGradient : null,
-            color: active ? null : AppColors.surfaceCard,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: active
-                ? [
-                    BoxShadow(
-                      color: AppColors.primary.withAlpha(90),
-                      blurRadius: 20,
-                      offset: const Offset(0, 6),
-                    ),
-                  ]
-                : null,
-          ),
-          child: _loading
-              ? Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      _useAI ? 'Menganalisis...' : 'Memproses...',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                )
-              : Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (_useAI) ...[
-                      Icon(
-                        Icons.auto_awesome_rounded,
-                        color: active ? Colors.white : AppColors.textMuted,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 6),
-                    ],
-                    Text(
-                      _useAI ? 'Analisis dengan AI' : 'Lanjut',
-                      style: TextStyle(
-                        color: active ? Colors.white : AppColors.textMuted,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Icon(
-                      Icons.arrow_forward_rounded,
-                      color: active ? Colors.white : AppColors.textMuted,
-                      size: 18,
-                    ),
-                  ],
+        onTapDown: active ? (_) => setState(() => _isButtonPressed = true) : null,
+        onTapUp: active
+            ? (_) {
+                setState(() => _isButtonPressed = false);
+                _submit();
+              }
+            : null,
+        onTapCancel: () => setState(() => _isButtonPressed = false),
+        child: AnimatedScale(
+          scale: _isButtonPressed ? 0.97 : 1.0,
+          duration: const Duration(milliseconds: 100),
+          curve: Curves.easeOut,
+          child: _loading && _useAI
+              ? _buildAILoadingButton()
+              : AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  decoration: BoxDecoration(
+                    gradient: active ? AppColors.primaryGradient : null,
+                    color: active ? null : AppColors.surfaceCard,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: active
+                        ? [
+                            BoxShadow(
+                              color: AppColors.primary.withAlpha(90),
+                              blurRadius: 20,
+                              offset: const Offset(0, 6),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: _loading
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            const Text(
+                              'Memproses...',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (_useAI) ...[
+                              Icon(
+                                Icons.auto_awesome_rounded,
+                                color: active ? Colors.white : AppColors.textMuted,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                            Text(
+                              _useAI ? 'Analisis dengan AI' : 'Lanjut',
+                              style: TextStyle(
+                                color: active ? Colors.white : AppColors.textMuted,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(
+                              Icons.arrow_forward_rounded,
+                              color: active ? Colors.white : AppColors.textMuted,
+                              size: 18,
+                            ),
+                          ],
+                        ),
                 ),
         ),
       ),
+    );
+  }
+
+  Widget _buildAILoadingButton() {
+    return AnimatedBuilder(
+      animation: _loadingCtrl,
+      builder: (context, _) {
+        final t = _loadingCtrl.value;
+        final shimmer = (t * 2 - 0.5).clamp(0.0, 1.0);
+        final glowAlpha = (80 + sin(t * 2 * pi) * 30).round().clamp(50, 110);
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [
+                AppColors.primaryDark,
+                AppColors.primaryLight,
+                AppColors.primaryDark,
+              ],
+              stops: [
+                (shimmer - 0.35).clamp(0.0, 1.0),
+                shimmer.clamp(0.0, 1.0),
+                (shimmer + 0.35).clamp(0.0, 1.0),
+              ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withAlpha(glowAlpha),
+                blurRadius: 24 + sin(t * 2 * pi) * 6,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Transform.rotate(
+                angle: t * 2 * pi,
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Menganalisis',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              _buildAnimatedDots(t),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAnimatedDots(double t) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(3, (i) {
+        final phase = ((t - i / 3) % 1.0 + 1.0) % 1.0;
+        final opacity = (sin(phase * pi)).clamp(0.2, 1.0);
+        return Opacity(
+          opacity: opacity,
+          child: const Text(
+            '.',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        );
+      }),
     );
   }
 }
