@@ -34,6 +34,31 @@ class CategoriesCubit extends Cubit<CategoriesState> {
     return category;
   }
 
+  Future<void> updateCustomCategory({
+    required String id,
+    required String name,
+    required IconData icon,
+    required Color color,
+    required TransactionType type,
+  }) async {
+    final updated = CustomCategory(
+      id: id,
+      name: name,
+      iconCode: icon.codePoint,
+      fontFamily: icon.fontFamily ?? 'MaterialIcons',
+      colorValue: color.toARGB32(),
+      type: type,
+    );
+    await _repository.save(updated);
+    emit(
+      state.copyWith(
+        customCategories: state.customCategories
+            .map((c) => c.id == id ? updated : c)
+            .toList(),
+      ),
+    );
+  }
+
   Future<void> deleteCustomCategory(String id) async {
     await _repository.delete(id);
     emit(
