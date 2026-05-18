@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import 'package:sentra_app/core/models/parsed_transaction.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
+import 'package:sentra_app/features/categories/cubit/categories_cubit.dart';
 import 'package:sentra_app/features/transactions/cubit/transactions_cubit.dart';
 import 'package:sentra_app/widgets/thousands_separator_formatter.dart';
 
@@ -63,6 +64,7 @@ class _MultiParseResultScreenState extends State<MultiParseResultScreen> {
           amount: item.tx.amount,
           type: item.tx.type,
           category: item.tx.category,
+          customCategoryId: item.tx.customCategoryId,
           date: item.tx.date,
           note: item.tx.note,
         ),
@@ -92,14 +94,18 @@ class _MultiParseResultScreenState extends State<MultiParseResultScreen> {
           children: [
             _buildHeader(),
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
-                itemCount: _items.length + 1,
-                itemBuilder: (_, i) {
-                  if (i == _items.length) return _buildSwipeHint();
-                  return _buildCard(i);
-                },
-              ),
+              child: Builder(builder: (context) {
+                final customCategories =
+                    context.watch<CategoriesCubit>().state.customCategories;
+                return ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
+                  itemCount: _items.length + 1,
+                  itemBuilder: (_, i) {
+                    if (i == _items.length) return _buildSwipeHint();
+                    return _buildCard(i, customCategories);
+                  },
+                );
+              }),
             ),
             _buildSummaryAndSave(),
           ],
@@ -176,12 +182,25 @@ class _MultiParseResultScreenState extends State<MultiParseResultScreen> {
     );
   }
 
-  Widget _buildCard(int index) {
+  Widget _buildCard(int index, List<CustomCategory> customCategories) {
     final item = _items[index].tx;
     final typeColor = item.type == TransactionType.expense
         ? AppColors.expense
         : AppColors.income;
-    final catColor = CategoryMeta.color(item.category);
+
+    // Resolve category display — prefer custom if set
+    CustomCategory? customCat;
+    if (item.customCategoryId != null) {
+      for (final c in customCategories) {
+        if (c.id == item.customCategoryId) {
+          customCat = c;
+          break;
+        }
+      }
+    }
+    final catColor = customCat?.color ?? CategoryMeta.color(item.category);
+    final catIcon = customCat?.icon ?? CategoryMeta.icon(item.category);
+    final catLabel = customCat?.name ?? CategoryMeta.label(item.category);
 
     return Dismissible(
       key: _items[index].key,
@@ -235,7 +254,7 @@ class _MultiParseResultScreenState extends State<MultiParseResultScreen> {
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Icon(
-                      CategoryMeta.icon(item.category),
+                      catIcon,
                       color: catColor,
                       size: 20,
                     ),
@@ -263,7 +282,7 @@ class _MultiParseResultScreenState extends State<MultiParseResultScreen> {
                         const SizedBox(height: 6),
                         Row(
                           children: [
-                            _chip(CategoryMeta.label(item.category), catColor),
+                            _chip(catLabel, catColor),
                             const SizedBox(width: 6),
                             _chip(Fmt.date(item.date), AppColors.textMuted),
                           ],
@@ -489,6 +508,7 @@ class _EditSheet extends StatefulWidget {
 class _EditSheetState extends State<_EditSheet> {
   late TransactionType _type;
   late TransactionCategory _category;
+  String? _customCategoryId;
   late TextEditingController _titleCtrl;
   late TextEditingController _amountCtrl;
   late DateTime _date;
@@ -498,6 +518,7 @@ class _EditSheetState extends State<_EditSheet> {
     super.initState();
     _type = widget.transaction.type;
     _category = widget.transaction.category;
+    _customCategoryId = widget.transaction.customCategoryId;
     _titleCtrl = TextEditingController(text: widget.transaction.title);
     _amountCtrl = TextEditingController(
       text: _formatAmount(widget.transaction.amount),
@@ -558,7 +579,8 @@ class _EditSheetState extends State<_EditSheet> {
         title: _titleCtrl.text.trim(),
         amount: _parsedAmount,
         type: _type,
-        category: _category,
+        category: _customCategoryId != null ? TransactionCategory.other : _category,
+        customCategoryId: _customCategoryId,
         date: _date,
         note: widget.transaction.note,
         rawInput: widget.transaction.rawInput,
@@ -771,50 +793,102 @@ class _EditSheetState extends State<_EditSheet> {
   }
 
   Widget _buildCategoryGrid() {
-    const categories = TransactionCategory.values;
-    return Wrap(
-      spacing: 7,
-      runSpacing: 7,
-      children: categories.map((cat) {
-        final sel = _category == cat;
-        final color = CategoryMeta.color(cat);
-        return GestureDetector(
-          onTap: () {
-            HapticFeedback.selectionClick();
-            setState(() => _category = cat);
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: sel ? color.withAlpha(38) : AppColors.surfaceCard,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: sel ? color.withAlpha(120) : AppColors.surfaceBorder,
+    final customCategories =
+        context.watch<CategoriesCubit>().state.customCategories;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 7,
+          runSpacing: 7,
+          children: TransactionCategory.values.map((cat) {
+            final sel = _customCategoryId == null && _category == cat;
+            final color = CategoryMeta.color(cat);
+            return GestureDetector(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                setState(() {
+                  _category = cat;
+                  _customCategoryId = null;
+                });
+              },
+              child: _chip(
+                icon: CategoryMeta.icon(cat),
+                label: CategoryMeta.label(cat),
+                color: color,
+                selected: sel,
               ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  CategoryMeta.icon(cat),
-                  color: sel ? color : AppColors.textMuted,
-                  size: 13,
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  CategoryMeta.label(cat),
-                  style: TextStyle(
-                    color: sel ? color : AppColors.textSecondary,
-                    fontSize: 11,
-                    fontWeight: sel ? FontWeight.w700 : FontWeight.w400,
-                  ),
-                ),
-              ],
+            );
+          }).toList(),
+        ),
+        if (customCategories.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text(
+            'KATEGORI KUSTOM',
+            style: TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
             ),
           ),
-        );
-      }).toList(),
+          const SizedBox(height: 7),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: customCategories.map((cat) {
+              final sel = _customCategoryId == cat.id;
+              return GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _customCategoryId = cat.id);
+                },
+                child: _chip(
+                  icon: cat.icon,
+                  label: cat.name,
+                  color: cat.color,
+                  selected: sel,
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _chip({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required bool selected,
+  }) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: selected ? color.withAlpha(38) : AppColors.surfaceCard,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: selected ? color.withAlpha(120) : AppColors.surfaceBorder,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: selected ? color : AppColors.textMuted, size: 13),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: selected ? color : AppColors.textSecondary,
+              fontSize: 11,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+            ),
+          ),
+        ],
+      ),
     );
   }
 

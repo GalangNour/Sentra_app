@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
@@ -211,6 +213,12 @@ const _groups = [
   ]),
 ];
 
+// Flat list computed once — avoids nested loop on every search
+final _allItems = _groups.expand((g) => g.items).toList(growable: false);
+
+// Total count computed once — avoids fold() in every build
+final _totalIconCount = _allItems.length;
+
 class IconPickerSheet extends StatefulWidget {
   final IconData? current;
 
@@ -232,29 +240,42 @@ class IconPickerSheet extends StatefulWidget {
 class _IconPickerSheetState extends State<IconPickerSheet> {
   final _searchCtrl = TextEditingController();
   String _query = '';
+  List<_IconItem> _results = const [];
+  Timer? _debounce;
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchCtrl.dispose();
     super.dispose();
   }
 
-  List<_IconItem> get _searchResults {
-    final q = _query.toLowerCase().trim();
-    if (q.isEmpty) return [];
-    final results = <_IconItem>[];
-    for (final group in _groups) {
-      for (final item in group.items) {
-        if (item.label.contains(q)) results.add(item);
-      }
+  void _onSearch(String value) {
+    _debounce?.cancel();
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      setState(() {
+        _query = '';
+        _results = const [];
+      });
+      return;
     }
-    return results;
+    // Wait 200ms after user stops typing before filtering
+    _debounce = Timer(const Duration(milliseconds: 200), () {
+      final q = trimmed.toLowerCase();
+      final results = _allItems.where((item) => item.label.contains(q)).toList(growable: false);
+      if (mounted) {
+        setState(() {
+          _query = trimmed;
+          _results = results;
+        });
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final searching = _query.trim().isNotEmpty;
-    final results = _searchResults;
+    final searching = _query.isNotEmpty;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.75,
@@ -296,7 +317,7 @@ class _IconPickerSheetState extends State<IconPickerSheet> {
                   ),
                   const Spacer(),
                   Text(
-                    '${_groups.fold(0, (s, g) => s + g.items.length)} ikon',
+                    '$_totalIconCount ikon',
                     style: TextStyle(
                         color: AppColors.textMuted, fontSize: 12),
                   ),
@@ -308,7 +329,7 @@ class _IconPickerSheetState extends State<IconPickerSheet> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: TextField(
                 controller: _searchCtrl,
-                onChanged: (v) => setState(() => _query = v),
+                onChanged: _onSearch,
                 style:
                     TextStyle(color: AppColors.textPrimary, fontSize: 14),
                 decoration: InputDecoration(
@@ -322,8 +343,12 @@ class _IconPickerSheetState extends State<IconPickerSheet> {
                           icon: Icon(Icons.close_rounded,
                               color: AppColors.textMuted, size: 18),
                           onPressed: () {
+                            _debounce?.cancel();
                             _searchCtrl.clear();
-                            setState(() => _query = '');
+                            setState(() {
+                              _query = '';
+                              _results = const [];
+                            });
                           },
                         )
                       : null,
@@ -350,11 +375,13 @@ class _IconPickerSheetState extends State<IconPickerSheet> {
               ),
             ),
             Divider(color: AppColors.surfaceBorder, height: 1),
-            // Icon grid
+            // Icon grid — RepaintBoundary isolates repaints from the header/search bar
             Expanded(
-              child: searching
-                  ? _buildSearchGrid(scrollCtrl, results)
-                  : _buildCategoryList(scrollCtrl),
+              child: RepaintBoundary(
+                child: searching
+                    ? _buildSearchGrid(scrollCtrl)
+                    : _buildCategoryList(scrollCtrl),
+              ),
             ),
           ],
         ),
@@ -362,9 +389,8 @@ class _IconPickerSheetState extends State<IconPickerSheet> {
     );
   }
 
-  Widget _buildSearchGrid(
-      ScrollController ctrl, List<_IconItem> results) {
-    if (results.isEmpty) {
+  Widget _buildSearchGrid(ScrollController ctrl) {
+    if (_results.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -395,8 +421,8 @@ class _IconPickerSheetState extends State<IconPickerSheet> {
         crossAxisSpacing: 8,
         childAspectRatio: 0.85,
       ),
-      itemCount: results.length,
-      itemBuilder: (_, i) => _iconCell(results[i]),
+      itemCount: _results.length,
+      itemBuilder: (_, i) => _iconCell(_results[i]),
     );
   }
 
@@ -443,42 +469,35 @@ class _IconPickerSheetState extends State<IconPickerSheet> {
 
   Widget _iconCell(_IconItem item) {
     final isSelected = widget.current?.codePoint == item.icon.codePoint;
+    final color = isSelected ? AppColors.primary : AppColors.textSecondary;
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
         Navigator.of(context).pop(item.icon);
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+      child: Container(
         decoration: BoxDecoration(
           color: isSelected
               ? AppColors.primary.withAlpha(26)
               : AppColors.surfaceCard,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected
-                ? AppColors.primary
-                : AppColors.surfaceBorder,
+            color: isSelected ? AppColors.primary : AppColors.surfaceBorder,
             width: isSelected ? 1.5 : 1,
           ),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              item.icon,
-              size: 26,
-              color: isSelected ? AppColors.primary : AppColors.textSecondary,
-            ),
+            Icon(item.icon, size: 26, color: color),
             const SizedBox(height: 4),
             Text(
               item.label.split(' ').first,
               style: TextStyle(
-                color: isSelected
-                    ? AppColors.primary
-                    : AppColors.textMuted,
+                color: isSelected ? AppColors.primary : AppColors.textMuted,
                 fontSize: 9,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                fontWeight:
+                    isSelected ? FontWeight.w600 : FontWeight.w400,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,

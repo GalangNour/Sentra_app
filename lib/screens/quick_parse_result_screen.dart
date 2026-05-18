@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import 'package:sentra_app/core/models/parsed_transaction.dart';
 import 'package:sentra_app/core/theme/app_theme.dart';
 import 'package:sentra_app/core/utils/app_utils.dart';
+import 'package:sentra_app/features/categories/cubit/categories_cubit.dart';
 import 'package:sentra_app/features/transactions/cubit/transactions_cubit.dart';
 import 'package:sentra_app/widgets/thousands_separator_formatter.dart';
 
@@ -22,6 +23,7 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
 
   late TransactionType _type;
   late TransactionCategory _category;
+  String? _customCategoryId;
   late TextEditingController _titleCtrl;
   late TextEditingController _amountCtrl;
   late TextEditingController _noteCtrl;
@@ -32,6 +34,7 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
     super.initState();
     _type = widget.parsed.type;
     _category = widget.parsed.category;
+    _customCategoryId = widget.parsed.customCategoryId;
     _titleCtrl = TextEditingController(text: widget.parsed.title);
     _amountCtrl = TextEditingController(
       text: _formatAmount(widget.parsed.amount),
@@ -102,7 +105,8 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
       title: _titleCtrl.text.trim(),
       amount: _parsedAmount,
       type: _type,
-      category: _category,
+      category: _customCategoryId != null ? TransactionCategory.other : _category,
+      customCategoryId: _customCategoryId,
       date: _date,
       note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
     );
@@ -135,7 +139,7 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
             _buildHeader(),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -146,15 +150,15 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
                     ],
                     const SizedBox(height: 20),
                     _buildTypeToggle(),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     _buildAmountField(),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     _buildDetailsCard(),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
                     _sectionLabel('Kategori'),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
                     _buildCategoryGrid(),
-                    const SizedBox(height: 100),
+                    const SizedBox(height: 36),
                   ],
                 ),
               ),
@@ -438,7 +442,6 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
             label: 'Keterangan',
             controller: _titleCtrl,
             hint: 'Nama transaksi...',
-            isFirst: true,
           ),
           Divider(height: 1, color: AppColors.surfaceBorder),
           _inlineDateRow(),
@@ -453,30 +456,24 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
     required String label,
     required TextEditingController controller,
     required String hint,
-    bool isFirst = false,
-    bool isLast = false,
   }) {
     return Padding(
-      padding: EdgeInsets.fromLTRB(
-        16,
-        isFirst ? 14 : 10,
-        16,
-        isLast ? 14 : 10,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           SizedBox(
-            width: 96,
+            width: 88,
             child: Text(
               label,
               style: TextStyle(
                 color: AppColors.textMuted,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
+          const SizedBox(width: 8),
           Expanded(
             child: TextField(
               controller: controller,
@@ -487,11 +484,10 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
               ),
               decoration: InputDecoration(
                 hintText: hint,
-                hintStyle:
-                    TextStyle(color: AppColors.textMuted, fontSize: 14),
+                hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 14),
                 border: InputBorder.none,
                 isDense: true,
-                contentPadding: EdgeInsets.zero,
+                contentPadding: const EdgeInsets.symmetric(vertical: 2),
               ),
               onChanged: (_) => setState(() {}),
             ),
@@ -506,20 +502,21 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
       onTap: _pickDate,
       behavior: HitTestBehavior.opaque,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+        padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
         child: Row(
           children: [
             SizedBox(
-              width: 96,
+              width: 88,
               child: Text(
                 'Tanggal',
                 style: TextStyle(
                   color: AppColors.textMuted,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),
+            const SizedBox(width: 8),
             Expanded(
               child: Text(
                 Fmt.date(_date),
@@ -543,24 +540,25 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
 
   Widget _inlineNoteField() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 96,
+            width: 88,
             child: Padding(
-              padding: const EdgeInsets.only(top: 2),
+              padding: const EdgeInsets.only(top: 3),
               child: Text(
                 'Catatan',
                 style: TextStyle(
                   color: AppColors.textMuted,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),
           ),
+          const SizedBox(width: 8),
           Expanded(
             child: TextField(
               controller: _noteCtrl,
@@ -572,11 +570,10 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
               ),
               decoration: InputDecoration(
                 hintText: 'Tambahkan catatan...',
-                hintStyle:
-                    TextStyle(color: AppColors.textMuted, fontSize: 14),
+                hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 14),
                 border: InputBorder.none,
                 isDense: true,
-                contentPadding: EdgeInsets.zero,
+                contentPadding: const EdgeInsets.symmetric(vertical: 2),
               ),
             ),
           ),
@@ -586,7 +583,10 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
   }
 
   Widget _buildCategoryGrid() {
-    final categories = [
+    final customCategories =
+        context.watch<CategoriesCubit>().state.customCategories;
+
+    const builtIns = [
       TransactionCategory.food,
       TransactionCategory.transport,
       TransactionCategory.shopping,
@@ -598,51 +598,100 @@ class _QuickParseResultScreenState extends State<QuickParseResultScreen> {
       TransactionCategory.other,
     ];
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: categories.map((cat) {
-        final selected = _category == cat;
-        final color = CategoryMeta.color(cat);
-        return GestureDetector(
-          onTap: () {
-            HapticFeedback.selectionClick();
-            setState(() => _category = cat);
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: selected ? color.withAlpha(45) : AppColors.surfaceCard,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: selected ? color.withAlpha(130) : AppColors.surfaceBorder,
-                width: selected ? 1.5 : 1,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: builtIns.map((cat) {
+            final selected = _customCategoryId == null && _category == cat;
+            final color = CategoryMeta.color(cat);
+            return GestureDetector(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                setState(() {
+                  _category = cat;
+                  _customCategoryId = null;
+                });
+              },
+              child: _categoryChip(
+                icon: CategoryMeta.icon(cat),
+                label: CategoryMeta.label(cat),
+                color: color,
+                selected: selected,
               ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  CategoryMeta.icon(cat),
-                  color: selected ? color : AppColors.textMuted,
-                  size: 15,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  CategoryMeta.label(cat),
-                  style: TextStyle(
-                    color: selected ? color : AppColors.textSecondary,
-                    fontSize: 12,
-                    fontWeight:
-                        selected ? FontWeight.w700 : FontWeight.w400,
-                  ),
-                ),
-              ],
+            );
+          }).toList(),
+        ),
+        if (customCategories.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          Text(
+            'KATEGORI KUSTOM',
+            style: TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
             ),
           ),
-        );
-      }).toList(),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: customCategories.map((cat) {
+              final selected = _customCategoryId == cat.id;
+              return GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _customCategoryId = cat.id);
+                },
+                child: _categoryChip(
+                  icon: cat.icon,
+                  label: cat.name,
+                  color: cat.color,
+                  selected: selected,
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _categoryChip({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required bool selected,
+  }) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: selected ? color.withAlpha(45) : AppColors.surfaceCard,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: selected ? color.withAlpha(130) : AppColors.surfaceBorder,
+          width: selected ? 1.5 : 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: selected ? color : AppColors.textMuted, size: 15),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: selected ? color : AppColors.textSecondary,
+              fontSize: 12,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
